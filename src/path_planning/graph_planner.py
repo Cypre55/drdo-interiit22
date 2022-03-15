@@ -5,6 +5,7 @@ from std_msgs.msg import Bool
 import numpy as np
 import tf.transformations
 from scipy.interpolate import UnivariateSpline
+from trajectory_msgs.msg import JointTrajectory,JointTrajectoryPoint
 import math
 
 # Constants
@@ -104,7 +105,8 @@ def gps_point_forward(data):
 
 
 def center_GPS_cb(data):
-    print("Received GPS point: ({0}, {1}, {2})".format(data.point.x, data.point.y, data.point.z))
+    global JointTrajectory
+    # print("Received GPS point: ({0}, {1}, {2})".format(data.point.x, data.point.y, data.point.z))
 
     if(gps_point_forward(data)):
         arr_1 = np.array([data.point.x, data.point.y])
@@ -191,7 +193,7 @@ def graph_planner():
     end_reached_flag = Bool()
     end_reached_flag.data = False
 
-    center_GPS_sub = rospy.Subscriber("/lane_center", PointStamped, center_GPS_cb)
+    center_GPS_sub = rospy.Subscriber("/lane/mid", JointTrajectory, center_GPS_cb)
     current_uav_pose_sub = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, current_uav_pose_cb)
 
     global graph

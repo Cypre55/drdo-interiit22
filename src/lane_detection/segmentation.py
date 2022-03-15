@@ -1,3 +1,4 @@
+#!/usr/bin/python
 from cv2 import transform
 import rospy
 from sensor_msgs.msg import Image
@@ -168,6 +169,8 @@ def find_path_without_car(dep):
             mx = stats[i, cv.CC_STAT_AREA]
             idx=i
     lane=labels==idx
+    global mask
+    mask=lane
     edges=skeletonize(lane^binary_erosion(lane,disk(5)))
     _,labels=cv.connectedComponents(np.uint8(edges),8)
     x,y=np.where(labels==1)
@@ -210,6 +213,8 @@ def maskback(data):
     mask=np.array(frame,dtype=np.float32)
 
 def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel coordinates and returns local 3d coordinates
+    # Inputs:
+    # cx, cy: Points in Pixel coordinates
     cx=cx.reshape(-1)
     cy=cy.reshape(-1)
     mask=cx<480
@@ -218,15 +223,16 @@ def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel co
     cy=cy[mask]
     cx=np.int32(cx)
     cy=np.int32(cy)
-    # print(cx.shape)
-    # print(cx)
-    X=np.vstack((cx,cy,np.ones(len(cx))))
+
+    ## Correction for swaping image frame coordinates and array indices
+    X=np.vstack((cy,cx,np.ones(len(cx))))
+    ####
+
+    # print(X.shape)
     # im_center=np.array([cX,cY,1])
     # im_center=im_center.reshape((3,1))
     k_int = np.array([[554.254691191187, 0.0, 320.5],
-
                         [0.0, 554.254691191187, 240.5],
-
                         [0.0, 0.0, 1.0]])
     if K is not None:
         k_int=K
@@ -234,9 +240,9 @@ def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel co
     X=np.matmul(np.linalg.inv(k_int),X)
     # print("X2", X)
     unit_vec=X/np.linalg.norm(X,axis=0)
-    img=img/255
-    img=img*50
     dep=img[cx,cy]
+    # print("UNIT VEC",unit_vec)
+    # print("DEPTH",dep)
     new_vec=unit_vec*dep
     global drone_pose
     # transform_mat=np.eye(4)
@@ -246,9 +252,17 @@ def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel co
     transform_mat[:3,3]=[drone_pose.pose.position.x, drone_pose.pose.position.y, drone_pose.pose.position.z]
     new_vec_p = np.vstack((new_vec, np.ones(new_vec.shape[1])))
     # new_vec_p[:3] = new_vec
-    transform_mat_c_d = np.eye(4)
+    transform_mat_c_d = np.array([[0., -1, 0., 0.],
+                                    [-1., 0., 0., 0.],
+                                    [0., 0., -1., 0.],
+                                    [0., 0., 0., 1.]])
+    # transform_mat_c_d=np.eye(4)
+    # print("NEW", new_vec_p)
     coord = np.matmul(transform_mat_c_d, new_vec_p)
+    # print("COORD IN DRNE FRAME", coord)
+    # print("MAT",transform_mat)
     coord=np.matmul(transform_mat, coord)
+    # print("COORD IN WORLD FRAME", coord.T)
     return coord
     # err = coord.T[0][:2] - prius_pose[i][:, 3][:2]
     # errs_list.append(np.linalg.norm(err))
@@ -278,6 +292,7 @@ def segmenter():
     left_pub=rospy.Publisher('/lane/left',JointTrajectory,queue_size=1)
     right_pub=rospy.Publisher('/lane/right',JointTrajectory,queue_size=1)
     mid_pub=rospy.Publisher('/lane/mid',JointTrajectory,queue_size=1)
+    mask_pub=rospy.Publisher('/mask',Image,queue_size=1)
     bridge=CvBridge()
     while not rospy.is_shutdown():
         start_time=time.time()
@@ -298,6 +313,8 @@ def segmenter():
             publish_traj(left_pub,path[0],path[1],"LEFT")
             publish_traj(right_pub,path[2],path[3],"RIGHT")
             publish_traj(mid_pub,path[4],path[5],"MID")
+            mask_pub.publish(bridge.cv2_to_imgmsg(255*np.uint8(mask),encoding="passthrough"))
+            # print(dep[240,320])
             # print(end_time-start_time)
             # print(projection([],[],dep))
             # msg=Point()
