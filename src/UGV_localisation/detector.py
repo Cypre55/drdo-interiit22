@@ -72,9 +72,10 @@ def poseCallback(data):
     drone_pose = data
 
 def maskCallback(data):
+    global cv_mask
     bridge = CvBridge()
     try:
-        cv_mask = bridge.imgmsg_to_cv2(data,"bgr8")
+        cv_mask = bridge.imgmsg_to_cv2(data,"8UC1")
     except CvBridgeError as e:
         print(e)
     global maskimg,header_maskimg
@@ -105,19 +106,22 @@ def maskCallback(data):
 
 def detector():
     rospy.init_node('detector')
-    global imgimg, im2, drone_pose
+    global imgimg, im2, drone_pose, cv_mask
     imgimg = None
     im2 = None
     drone_pose = None
+    cv_mask = None
     # strTime = rospy.get_time()
     rospy.Subscriber("/depth_camera/depth/image_raw", Image, depthCallback)
     rospy.Subscriber("/depth_camera/rgb/image_raw", Image, rgbCallback)
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, poseCallback)
     rospy.Subscriber("/mask",Image,maskCallback)
     # print("Subscribed")
+    # rate =rospy.Rate(10)
     while not rospy.is_shutdown():
-        if imgimg is not None and im2 is not None and drone_pose is not None:
+        if imgimg is not None and im2 is not None and drone_pose is not None and cv_mask is not None:
             calculations()
+        # rate.sleep()
 
 
 def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel coordinates and returns local 3d coordinates
@@ -146,8 +150,8 @@ def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel co
     k_int = np.array([[554.254691191187, 0.0, 320.5],
                         [0.0, 554.254691191187, 240.5],
                         [0.0, 0.0, 1.0]])
-    if K is not None:
-        k_int=K
+    # if K is not None:
+    #     k_int=K
     # print("X1", X)
     X=np.matmul(np.linalg.inv(k_int),X)
     # print("X2", X)
@@ -208,7 +212,10 @@ def calculations():
     gray = cv2.bitwise_not(gray)
 
     # thresh = cv2.threshold(gray, 210, 255, cv2.THRESH_BINARY_INV)[1]
+    # if cv_mask != None:
     thresh = 255-cv_mask
+    # else:
+    #     return
 
 
     cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -217,7 +224,7 @@ def calculations():
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
 
     min_area = 400
-    max_area = 9999990000
+    max_area = 40000
     
     pubMsg = customMessage()
     pubMsg.header = header_imgimg
