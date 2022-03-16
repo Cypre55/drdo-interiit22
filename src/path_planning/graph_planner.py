@@ -141,7 +141,7 @@ def build_graph(joint_traj):
 		# print
 		if (dist > NEW_WP_RESOLUTION):
 			# print("Distance: ", dist)
-			if(gps_point_forward(joint_traj[i, :2])):
+			# if(gps_point_forward(joint_traj[i, :2])):
 				
 			uav = Pose()
 			ugv = Pose()
