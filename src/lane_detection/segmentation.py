@@ -298,7 +298,7 @@ def segmenter():
     left_pub=rospy.Publisher('/lane/left',JointTrajectory,queue_size=1)
     right_pub=rospy.Publisher('/lane/right',JointTrajectory,queue_size=1)
     mid_pub=rospy.Publisher('/lane/mid',JointTrajectory,queue_size=1)
-    mask_pub=rospy.Publisher('/mask',Image,queue_size=1)
+    mask_pub=rospy.Publisher('/lane/mask',Image,queue_size=1)
     bridge=CvBridge()
     while not rospy.is_shutdown():
         start_time=time.time()

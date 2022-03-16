@@ -18,13 +18,12 @@ import os
 import numpy as np
 from cv_bridge import CvBridge,CvBridgeError
 from message_filters import TimeSynchronizer, Subscriber, ApproximateTimeSynchronizer
-from tf.transformations import quaternion_matrix
+from tf.transformations import quaternion_matrix, quaternion_from_euler
 from drdo_interiit22.msg import customMessage
 
 # import sys
 # sys.path.append("../")
 # from projection2Dto3D import projection
-
 
 pub1 = rospy.Publisher('car_state/complete', customMessage, queue_size=10)
 pub2 = rospy.Publisher('car_state/mask_contour', sensor_msgs.msg.Image, queue_size=10)
@@ -115,7 +114,7 @@ def detector():
     rospy.Subscriber("/depth_camera/depth/image_raw", Image, depthCallback)
     rospy.Subscriber("/depth_camera/rgb/image_raw", Image, rgbCallback)
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, poseCallback)
-    rospy.Subscriber("/mask",Image,maskCallback)
+    rospy.Subscriber("/lane/mask",Image,maskCallback)
     # print("Subscribed")
     # rate =rospy.Rate(10)
     while not rospy.is_shutdown():
@@ -175,8 +174,8 @@ def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel co
     # transform_mat_c_d=np.eye(4)
     # print("NEW", new_vec_p)
     coord = np.matmul(transform_mat_c_d, new_vec_p)
-    # print("COORD IN DRNE FRAME", coord)
     # print("MAT",transform_mat)
+    # print("COORD IN DRNE FRAME", coord)
     coord=np.matmul(transform_mat, coord)
     # print("COORD IN WORLD FRAME", coord.T)
     return coord
@@ -187,7 +186,7 @@ def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel co
 # 2 rgb
 # 3 local pose
 def calculations():
-    print("CALLBACK CALLED")
+    # print("CALLBACK CALLED")
     startTime = rospy.get_time()
     bridge = CvBridge()
     global imgimg, im2, drone_pose, header_im2, header_imgimg
@@ -262,12 +261,13 @@ def calculations():
 
             # imgs = image[:, :, 0].astype('uint8')
             mask_rect = np.zeros(img.shape, np.uint8)
-            # cv2.drawContours(mask_rect, [box], 0, (255), thickness=-1)
-            subtracted = cv2.subtract(mask_rect, mask)
+            cv2.drawContours(mask_rect, [box], 0, (255), thickness=-1)
+            subtracted = cv2.subtract(mask_rect, cv_mask)
             ret2, th2 = cv2.threshold(subtracted, 100, 255, cv2.THRESH_BINARY)
             white = np.argwhere(th2 == 255)
             white = np.transpose(white)
-            # cv2.imshow("mask",mask)
+            # print("Hi")
+            # cv2.imshow("subtracted",subtracted)
             y = np.mean(white, axis=1)
             # cv2.circle(image, (int(y[1]), int(y[0])), 7, (0, 255, 255), -1)
             dist1 = (box[0][0] - box[1][0]) ** 2 + (box[0][1] - box[1][1]) ** 2
@@ -288,7 +288,7 @@ def calculations():
             dist2 = (xbot - y[1]) ** 2 + (ybot - y[0]) ** 2
             if dist1 > dist2:
 
-                # cv2.line(image, (int(cx), int(cy)), (int(xtop), int(ytop)), (0, 0, 255), 3)
+                cv2.line(image, (int(cx), int(cy)), (int(xtop), int(ytop)), (0, 0, 255), 3)
                 angle = np.arctan2(ybot - cy, xbot - cx)
                 # print(ybot - cy)
                 # print(xbot - cx)
@@ -296,12 +296,14 @@ def calculations():
                 yfront = ybot
                 xback = xtop
                 yback = ytop
-                coord = projection(np.array([xbot, cx, xtop]), np.array([ybot, cy, ytop]), cv_depth, drone_pose)
-                # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-                # cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,127),-1)
-                # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,127),-1)
+                # SWAPPED X Y for Projection to work
+                coord = projection(np.array([ybot, cy, ytop]), np.array([xbot, cx, xtop]), cv_depth, drone_pose)
+                # coord = projection(np.array([xtop]), np.array([ytop]), cv_depth, drone_pose)
+                cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+                cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
+                cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,127),-1)
             else:
-                # cv2.line(image, (int(xbot), int(ybot)), (int(cx), int(cy)), (0, 0, 255), 3)
+                cv2.line(image, (int(xbot), int(ybot)), (int(cx), int(cy)), (0, 0, 255), 3)
 
                 angle = np.arctan2(ytop - cy, xtop - cx)
                 # print(ybot - cy)
@@ -310,10 +312,12 @@ def calculations():
                 yfront = ytop
                 xback = xbot
                 yback = ybot
-                coord = projection(np.array([xtop, cx, xbot]), np.array([ytop, cy, ybot]), cv_depth, drone_pose)
-                # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-                # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,127),-1)
-                # cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,127),-1)
+                # SWAPPED X Y for Projection to work
+                coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
+                # coord = projection(np.array([xbot]), np.array([ybot]), cv_depth, drone_pose)
+                cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+                cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
+                cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,127),-1)
 
             # angle = angle * 180 / np.pi
             # x_y_yaw = str(cx) + "," + str(cy) + "," + str(angle)
@@ -325,7 +329,7 @@ def calculations():
 
             result = [cx, cy, angle]
             # cv2.imshow("images", image)
-            # cv2.waitKey(10)
+            # cv2.waitKey(1)
 
 
             # ARCHIT CODE
@@ -335,16 +339,15 @@ def calculations():
             # cv2.circle(image,(int(xfront),int(yfront)),7,(255,0,127),-1)
             # cv2.circle(image,(int(xback),int(yback)),7,(255,0,127),-1)
             # cv2.imshow("points",image)
-            # cv2.waitKey(1)
 
 
             # isMask = True
             if coord.shape[1] == 3:
                 # isMask = True
-                dZ = coord[0,2] - coord[2,2]
-                dX = coord[0,0] - coord[2,0]
+                dY = coord[1,0] - coord[1,2]
+                dX = coord[0,0] - coord[0,2]
 
-                yaw_angle = np.arctan2(dZ,dX)
+                yaw_angle = np.arctan2(dY,dX)
                 # final_tf = quaternion_matrix([np.sin(angle/2.0), np.cos(angle/2.0) ,0, 0,])
                 # final_tf[0][3] = coord[0]
                 # final_tf[1][3] = coord[1]
@@ -382,9 +385,9 @@ def calculations():
                 zvel.append(vel_z)
 
                 pubMsg.car_state.header = header_im2
-                pubMsg.car_state.pose.pose.position.x = coord[0,0]
-                pubMsg.car_state.pose.pose.position.y = coord[1,0]
-                pubMsg.car_state.pose.pose.position.z = coord[2,0]
+                pubMsg.car_state.pose.pose.position.x = coord[0,2]
+                pubMsg.car_state.pose.pose.position.y = coord[1,2]
+                pubMsg.car_state.pose.pose.position.z = coord[2,2]
 
                 # final_pose = geometry_msgs.msg.PoseStamped()
                 # final_pose.pose.position.x = coord[0,2]
@@ -392,10 +395,12 @@ def calculations():
                 # final_pose.pose.position.z = coord[2,2]
                 # final_pose.header = drone_pose.header
 
-                pubMsg.car_state.pose.pose.orientation.x = yaw_angle
-                pubMsg.car_state.pose.pose.orientation.y = 0
-                pubMsg.car_state.pose.pose.orientation.z = 0
-                pubMsg.car_state.pose.pose.orientation.w = 0
+                quaternion = tf.transformations.quaternion_from_euler(0, 0, yaw_angle)
+
+                pubMsg.car_state.pose.pose.orientation.x = quaternion.x
+                pubMsg.car_state.pose.pose.orientation.y = quaternion.y
+                pubMsg.car_state.pose.pose.orientation.z = quaternion.z
+                pubMsg.car_state.pose.pose.orientation.w = quaternion.w
 
                 # final_vel = geometry_msgs.msg.TwistStamped()
                 # final_vel.twist.linear.x = vel_x
