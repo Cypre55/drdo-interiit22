@@ -45,7 +45,7 @@ Q_y = 250000#3000
 Q_V = 1000#1000000                                                                          
 Q_theta = 1000#200 
 
-R1 = 0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
+R1 = 1e+8#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
 R2 = 1e+4#10000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
