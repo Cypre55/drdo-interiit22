@@ -24,8 +24,9 @@ cx=-1
 cy=-1
 dep=np.zeros((480,640))
 mask=np.zeros((480,640))
+lane_mask=np.zeros((480,640))
 drone_pose=PoseStamped()
-def fit_spline(x,y,xx=10):
+def fit_spline(x,y):
     resolution = 0.1
     path_x=[]
     path_y=[]
@@ -140,6 +141,8 @@ def find_path_with_car():
             mx = stats[i, cv.CC_STAT_AREA]
             idx=i
     lane=labels==idx
+    global lane_mask
+    lane_mask=255*np.uint8(lane)
     edges=skeletonize(lane^binary_erosion(lane,disk(5)))
     _,labels=cv.connectedComponents(np.uint8(edges),8)
     x,y=np.where(labels==1)
@@ -151,14 +154,16 @@ def find_path_with_car():
     if rx is None:
         return None
     mx,my=(lx+rx)/2,(ly+ry)/2
-    mx1,my1=fit_spline(mx,my,xx=1)
+    mx1,my1=fit_spline(mx,my)
     mx1=np.int32(mx1)
     my1=np.int32(my1)
     return [lx,ly,rx,ry,mx1,my1]
 
 def find_path_without_car(dep):
+    global lane_mask,pre_est
     norms=find_grad_sobel(dep)
     norms=normalized(norms,axis=2)
+    norms=project_normals(norms)
     dp=np.sum(norms*pre_est,axis=2)
     lane=dp>0.995
     lane=binary_erosion(lane,disk(5))
@@ -171,8 +176,8 @@ def find_path_without_car(dep):
             mx = stats[i, cv.CC_STAT_AREA]
             idx=i
     lane=labels==idx
-    global mask
-    mask=lane
+    lane_mask=255*np.uint8(lane)
+    pre_est=np.mean(norms[lane], axis=0)
     edges=skeletonize(lane^binary_erosion(lane,disk(5)))
     _,labels=cv.connectedComponents(np.uint8(edges),8)
     x,y=np.where(labels==1)
@@ -184,7 +189,7 @@ def find_path_without_car(dep):
     if rx is None:
         return None
     mx,my=(lx+rx)/2,(ly+ry)/2
-    mx1,my1=fit_spline(mx,my,xx=1)
+    mx1,my1=fit_spline(mx,my)
     mx1=np.int32(mx1)
     my1=np.int32(my1)
     return [lx,ly,rx,ry,mx1,my1]
@@ -214,6 +219,18 @@ def maskback(data):
     global mask
     mask=np.array(frame,dtype=np.float32)
 
+def project_normals(norms):
+    new_norms=norms.reshape((-1,3))
+    new_norms=new_norms.T
+    global drone_pose
+    quaternion = (drone_pose.pose.orientation.x,drone_pose.pose.orientation.y,drone_pose.pose.orientation.z,drone_pose.pose.orientation.w)
+    rot = tf.transformations.quaternion_matrix(quaternion)[:3,:3]
+    new_norms = np.matmul(rot, new_norms)
+    new_norms=new_norms.T
+    new_norms=new_norms.reshape((480,640,3))
+    # new_norms=new_norms.reshape((2,3,3))
+    return new_norms
+
 def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel coordinates and returns local 3d coordinates
     # Inputs:
     # cx, cy: Points in Pixel coordinates
@@ -242,9 +259,7 @@ def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel co
                         [0.0, 0.0, 1.0]])
     if K is not None:
         k_int=K
-    # print("X1", X)
     X=np.matmul(np.linalg.inv(k_int),X)
-    # print("X2", X)
     unit_vec=X/np.linalg.norm(X,axis=0)
     dep=img[cx,cy]
     # print("UNIT VEC",unit_vec)
@@ -270,8 +285,6 @@ def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel co
     coord=np.matmul(transform_mat, coord)
     # print("COORD IN WORLD FRAME", coord.T)
     return coord
-    # err = coord.T[0][:2] - prius_pose[i][:, 3][:2]
-    # errs_list.append(np.linalg.norm(err))
 
 def poseback(data):
     global drone_pose
@@ -308,7 +321,6 @@ def segmenter():
                 pass
         except Exception as e:
             iscar=False
-        # print(iscar)
         if iscar:
             path=find_path_with_car(dep)
         else:
@@ -320,14 +332,11 @@ def segmenter():
             publish_traj(left_pub,path[0],path[1],"LEFT")
             publish_traj(right_pub,path[2],path[3],"RIGHT")
             publish_traj(mid_pub,path[4],path[5],"MID")
-            mask_pub.publish(bridge.cv2_to_imgmsg(255*np.uint8(mask),encoding="passthrough"))
-            # print(dep[240,320])
-            # print(end_time-start_time)
-            # print(projection([],[],dep))
-            # msg=Point()
-            # for i in len(path[0]):
-            #     msg.x=
-
+            mask_pub.publish(bridge.cv2_to_imgmsg(lane_mask))
+            # pre_est1=np.array([1., 0., 0.]).reshape((1,1,3))
+            # test=np.array([[pre_est, pre_est1, pre_est],
+            #                 [pre_est1, pre_est, pre_est1]])
+            # print(project_normals(test))
 
 if __name__ == '__main__':
     segmenter()
