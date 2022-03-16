@@ -270,6 +270,8 @@ def calculations():
             img = image[:, :, 0].astype('uint8')
             mask = np.zeros(img.shape, np.uint8)
             cv2.drawContours(mask, [cnt], -1, (255), thickness=-1)
+            # cv2.imshow("image",image)
+            # cv2.waitKey(0)
 
             # imgs = image[:, :, 0].astype('uint8')
             mask_rect = np.zeros(img.shape, np.uint8)
@@ -280,6 +282,10 @@ def calculations():
             # cv2.imwrite("subtracted_mask.png",subtracted)
             white = np.argwhere(th2 == 255)
             white = np.transpose(white)
+            # cv2.imshow("thresh",th2)
+            # cv2.imshow("subtracted",subtracted)
+            # cv2.imshow("cv_mask",cv_mask)
+            # cv2.waitKey(0)
             # print("Hi")
             # cv2.imshow("subtracted",subtracted)
             y = np.mean(white, axis=1)
@@ -302,31 +308,38 @@ def calculations():
             dist2 = (xbot - y[1]) ** 2 + (ybot - y[0]) ** 2
             if dist1 > dist2:
 
-                cv2.line(image, (int(cx), int(cy)), (int(xtop), int(ytop)), (0, 0, 255), 3)
+                # cv2.line(image, (int(cx), int(cy)), (int(xtop), int(ytop)), (0, 0, 255), 3)
                 angle = np.arctan2(ybot - cy, xbot - cx)
                 # print(ybot - cy)
                 # print(xbot - cx)
-                xfront = xbot
-                yfront = ybot
-                xback = xtop
-                yback = ytop
+                xback = xbot
+                yback = ybot
+                xfront = xtop
+                yfront = ytop
                 # SWAPPED X Y for Projection to work
-                coord = projection(np.array([ybot, cy, ytop]), np.array([xbot, cx, xtop]), cv_depth, drone_pose)
+                # coord = projection(np.array([ybot, cy, ytop]), np.array([xbot, cx, xtop]), cv_depth, drone_pose)
                 # coord = projection(np.array([xtop]), np.array([ytop]), cv_depth, drone_pose)
+<<<<<<< HEAD
                 cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
                 cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
                 cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
+=======
+                # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+                # cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
+                # cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
+>>>>>>> 410fa87a32dd5576e8e61954c9ac9455749fb883
             else:
                 # cv2.line(image, (int(xbot), int(ybot)), (int(cx), int(cy)), (0, 0, 255), 3)
 
                 angle = np.arctan2(ytop - cy, xtop - cx)
                 # print(ybot - cy)
                 # print(xbot - cx)
-                xfront = xtop
-                yfront = ytop
-                xback = xbot
-                yback = ybot
+                xback = xtop
+                yback = ytop
+                xfront = xbot
+                yfront = ybot
                 # SWAPPED X Y for Projection to work
+<<<<<<< HEAD
                 coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
                 
                 # coord = projection(np.array([xbot]), np.array([ybot]), cv_depth, drone_pose)
@@ -334,6 +347,18 @@ def calculations():
                 cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
                 cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
             # cv2.imwrite("car_contour_front.png",image)
+=======
+                # coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
+                # coord = projection(np.array([xbot]), np.array([ybot]), cv_depth, drone_pose)
+                # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+                # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
+                # cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
+            coord = projection(np.array([yfront, cy, yback]), np.array([xfront, cx, xback]), cv_depth, drone_pose)
+
+            # cv2.circle(image,(int(xfront),int(yfront)),7,(255,0,0),-1)
+            # cv2.imshow("image",image)
+            # cv2.waitKey(0)
+>>>>>>> 410fa87a32dd5576e8e61954c9ac9455749fb883
             # angle = angle * 180 / np.pi
             # x_y_yaw = str(cx) + "," + str(cy) + "," + str(angle)
             # cv2.putText(image, x_y_yaw, (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
@@ -342,7 +367,7 @@ def calculations():
             # cv2.imshow("image",image)
             # cv2.waitKey(1)
 
-            result = [cx, cy, angle]
+            # result = [cx, cy, angle]
             # cv2.imshow("images", image)
             # cv2.waitKey(1)
             pub2.publish(bridge.cv2_to_imgmsg(image))
