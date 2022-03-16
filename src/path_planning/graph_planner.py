@@ -11,7 +11,6 @@ import time
 
 # Constants
 # TODO:
-# GLOBAL variables Caps
 # Starts when took_off
 # Only forward
 # Start, End Condition
@@ -181,8 +180,10 @@ def build_graph(joint_traj):
 			uav_wp.pose = graph.arr[graph.current].UAV
 			uav_wp_pub.publish(uav_wp)
 			time.sleep(1)
-			# with open('graph_nodes.npy', 'wb') as f:
-			# 	np.save(f, np.array(graph.arr))
+			with open('ugv_waypoints.npy', 'wb') as f:
+				UGV_waypoints = [np.array([i.UGV.position.x, i.UGV.position.y]) for i in graph.arr]
+				np.save(f, np.array(UGV_waypoints))
+
 			return
 		# else:
 		# 	print("Okay")
