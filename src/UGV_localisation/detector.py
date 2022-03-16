@@ -288,7 +288,7 @@ def calculations():
             dist2 = (xbot - y[1]) ** 2 + (ybot - y[0]) ** 2
             if dist1 > dist2:
 
-                cv2.line(image, (int(cx), int(cy)), (int(xtop), int(ytop)), (0, 0, 255), 3)
+                # cv2.line(image, (int(cx), int(cy)), (int(xtop), int(ytop)), (0, 0, 255), 3)
                 angle = np.arctan2(ybot - cy, xbot - cx)
                 # print(ybot - cy)
                 # print(xbot - cx)
@@ -297,11 +297,11 @@ def calculations():
                 xback = xtop
                 yback = ytop
                 coord = projection(np.array([xbot, cx, xtop]), np.array([ybot, cy, ytop]), cv_depth, drone_pose)
-                cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-                cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,127),-1)
-                cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,127),-1)
+                # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+                # cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,127),-1)
+                # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,127),-1)
             else:
-                cv2.line(image, (int(xbot), int(ybot)), (int(cx), int(cy)), (0, 0, 255), 3)
+                # cv2.line(image, (int(xbot), int(ybot)), (int(cx), int(cy)), (0, 0, 255), 3)
 
                 angle = np.arctan2(ytop - cy, xtop - cx)
                 # print(ybot - cy)
@@ -311,9 +311,9 @@ def calculations():
                 xback = xbot
                 yback = ybot
                 coord = projection(np.array([xtop, cx, xbot]), np.array([ytop, cy, ybot]), cv_depth, drone_pose)
-                cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-                cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,127),-1)
-                cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,127),-1)
+                # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+                # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,127),-1)
+                # cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,127),-1)
 
             # angle = angle * 180 / np.pi
             # x_y_yaw = str(cx) + "," + str(cy) + "," + str(angle)
@@ -334,13 +334,9 @@ def calculations():
             # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
             # cv2.circle(image,(int(xfront),int(yfront)),7,(255,0,127),-1)
             # cv2.circle(image,(int(xback),int(yback)),7,(255,0,127),-1)
-            cv2.imshow("points",image)
-            cv2.waitKey(1)
-            # coord = projection(np.array([xfront, cx, xback]),np.array([yfront, cy, yback]),cv_depth, drone_pose)
-            # coord_back = projection(xback,yback,cv_depth)
-            # coord_front = projection(xfront,yfront,cv_depth)
-            # print("Centre World Coordinates ---------- \n", coord)
-            # print(coord.shape)
+            # cv2.imshow("points",image)
+            # cv2.waitKey(1)
+
 
             # isMask = True
             if coord.shape[1] == 3:
@@ -386,9 +382,9 @@ def calculations():
                 zvel.append(vel_z)
 
                 pubMsg.car_state.header = header_im2
-                pubMsg.car_state.pose.pose.position.x = coord[0,2]
-                pubMsg.car_state.pose.pose.position.y = coord[1, 2]
-                pubMsg.car_state.pose.pose.position.z = coord[2, 2]
+                pubMsg.car_state.pose.pose.position.x = coord[0,0]
+                pubMsg.car_state.pose.pose.position.y = coord[1,0]
+                pubMsg.car_state.pose.pose.position.z = coord[2,0]
 
                 # final_pose = geometry_msgs.msg.PoseStamped()
                 # final_pose.pose.position.x = coord[0,2]
