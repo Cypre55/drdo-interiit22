@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   nav_msgs
   geometry_msgs
+  prius_msgs
 )
 
 add_message_files(
@@ -38,5 +39,11 @@ include_directories(
 add_executable(init_drone src/path_planning/init_drone.cpp)
 
 target_link_libraries(init_drone
+  ${catkin_LIBRARIES}
+)
+
+add_executable(car_control src/UGV_localisation/control2_path_generation.cpp)
+
+target_link_libraries(car_control
   ${catkin_LIBRARIES}
 )

@@ -116,11 +116,15 @@ def detector():
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, poseCallback)
     rospy.Subscriber("/lane/mask",Image,maskCallback)
     # print("Subscribed")
-    # rate =rospy.Rate(10)
+    rate =rospy.Rate(10)
     while not rospy.is_shutdown():
         if imgimg is not None and im2 is not None and drone_pose is not None and cv_mask is not None:
             calculations()
-        # rate.sleep()
+            imgimg = None
+            im2 = None
+            drone_pose = None
+            cv_mask = None
+        rate.sleep()
 
 
 def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel coordinates and returns local 3d coordinates
@@ -328,8 +332,8 @@ def calculations():
             # cv2.waitKey(1)
 
             result = [cx, cy, angle]
-            # cv2.imshow("images", image)
-            # cv2.waitKey(1)
+            cv2.imshow("images", image)
+            cv2.waitKey(1)
 
 
             # ARCHIT CODE
@@ -362,17 +366,23 @@ def calculations():
                 # final_tf.transform.rotation.y = 0
                 # final_tf.transform.rotation.z = 0
                 # final_tf.transform.rotation.w = np.sin(angle/2.0)
+                # print("sec", header_im2.stamp.to_sec())
+                # print("nsec", header_im2.stamp.to_nsec())
                 vel_x = vel_y = vel_z=0
-                if xdata:
+                if len(xdata) != 0:
                     # print(xdata)
-                    if time[-1] == header_im2.stamp.to_sec():
-                        vel_x=xvel[-1]
-                        vel_y=yvel[-1]
-                        vel_z=zvel[-1]
-                    else:
-                        vel_x = (xdata[-1]-coord[0,2])/(time[-1]-header_im2.stamp.to_sec())
-                        vel_y = (ydata[-1]-coord[1,2])/(time[-1]-header_im2.stamp.to_sec())
-                        vel_z = (zdata[-1]-coord[2,2])/(time[-1]-header_im2.stamp.to_sec())
+                    dT = header_im2.stamp.to_sec()-time[-1]
+                    dT = max(dT, 1e-3)
+                    print("DT: ", dT)
+                    vel_x = (coord[0,2] - xdata[-1])/(dT)
+                    vel_y = (coord[1,2] - ydata[-1])/(dT)
+                    vel_z = (coord[2,2] - zdata[-1])/(dT)
+                    print("VEL at correct case", vel_x, vel_y)
+                else:
+                    vel_x=0
+                    vel_y=0
+                    vel_z=0
+                    print("VEL at 0 case", vel_x, vel_y)
 
                 # dist_temp = (xdata[-1]-coord_back[0])**2 + (ydata[-1]-coord_back[1])**2 + (zdata[-1]-coord_back[2])
 
@@ -397,10 +407,10 @@ def calculations():
 
                 quaternion = tf.transformations.quaternion_from_euler(0, 0, yaw_angle)
 
-                pubMsg.car_state.pose.pose.orientation.x = quaternion.x
-                pubMsg.car_state.pose.pose.orientation.y = quaternion.y
-                pubMsg.car_state.pose.pose.orientation.z = quaternion.z
-                pubMsg.car_state.pose.pose.orientation.w = quaternion.w
+                pubMsg.car_state.pose.pose.orientation.x = quaternion[0]
+                pubMsg.car_state.pose.pose.orientation.y = quaternion[1]
+                pubMsg.car_state.pose.pose.orientation.z = quaternion[2]
+                pubMsg.car_state.pose.pose.orientation.w = quaternion[3]
 
                 # final_vel = geometry_msgs.msg.TwistStamped()
                 # final_vel.twist.linear.x = vel_x
