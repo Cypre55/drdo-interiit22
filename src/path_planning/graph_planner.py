@@ -14,12 +14,13 @@ import time
 # GLOBAL variables Caps
 # Starts when took_off
 # Only forward
+# Start, End Condition
 
-uav_height = 18.0
+UAV_HEIGHT = 18.0
 PI = 3.1415
-reach_threshold = 0.05
-new_wp_resolution = 3
-deque_size = 4
+REACH_THRESHOLD = 0.05
+NEW_WP_RESOLUTION = 3
+DEQUE_SIZE = 4
 
 class Node():
 	def __init__(self, uav, ugv, index):
@@ -39,7 +40,7 @@ class Graph():
 		self.current = 0
 
 def getYawFromSpline():
-	t = np.arange(deque_size)
+	t = np.arange(DEQUE_SIZE)
 
 	np_x = np.array([graph.arr[i].UAV.position.x for i in graph.last_nodes])
 	np_y = np.array([graph.arr[i].UAV.position.y for i in graph.last_nodes])
@@ -47,7 +48,7 @@ def getYawFromSpline():
 	spl_x = UnivariateSpline(t, np_x)
 	spl_y = UnivariateSpline(t, np_y)
 
-	point = deque_size-1
+	point = DEQUE_SIZE-1
 	tan = spl_y.derivative()(point)/spl_x.derivative()(point)
 
 	atan = np.arctan(tan)
@@ -78,35 +79,27 @@ def getYawFromSpline():
 	return quaternion
 
 
-# def euler_from_quaternion(x, y, z, w):
-# 		t0 = +2.0 * (w * x + y * z)
-# 		t1 = +1.0 - 2.0 * (x * x + y * y)
-# 		roll_x = math.atan2(t0, t1)
-	 
-# 		t2 = +2.0 * (w * y - z * x)
-# 		t2 = +1.0 if t2 > +1.0 else t2
-# 		t2 = -1.0 if t2 < -1.0 else t2
-# 		pitch_y = math.asin(t2)
-	 
-# 		t3 = +2.0 * (w * z + x * y)
-# 		t4 = +1.0 - 2.0 * (y * y + z * z)
-# 		yaw_z = math.atan2(t3, t4)
-	 
-# 		return roll_x, pitch_y, yaw_z # in radians
+def gps_point_forward(data):
+	pose_to_wp_angle = math.atan2(data[1] - current_uav_pose.pose.position.y, data[0] - current_uav_pose.pose.position.x)
+	# _, __, y = euler_from_quaternion(current_uav_pose.pose.orientation.x, current_uav_pose.pose.orientation.y, current_uav_pose.pose.orientation.z,current_uav_pose.pose.orientation.w)
 
-# def gps_point_forward(data):
-# 	pose_to_wp_angle = math.atan2(data.point.y - current_uav_pose.pose.position.y, data.point.x - current_uav_pose.pose.position.x)
-# 	_, __, y = euler_from_quaternion(current_uav_pose.pose.orientation.x, current_uav_pose.pose.orientation.y, current_uav_pose.pose.orientation.z,current_uav_pose.pose.orientation.w)
+	quaternion = (current_uav_pose.pose.orientation.x,
+	current_uav_pose.pose.orientation.y,
+	current_uav_pose.pose.orientation.z,
+	current_uav_pose.pose.orientation.w)
+	euler = tf.transformations.euler_from_quaternion(quaternion)
 
-# 	for theta in [pose_to_wp_angle, y]:
-# 		if(theta < 0):
-# 			theta += 2 * np.pi
-# 	if(abs(y - pose_to_wp_angle) < np.pi / 2):
-# 		return True
-# 	elif(2 * np.pi - abs(y - pose_to_wp_angle) < np.pi / 2):
-# 		return True
-# 	else:
-# 		return False
+	y = euler[2]
+
+	for theta in [pose_to_wp_angle, y]:
+		if(theta < 0):
+			theta += 2 * np.pi
+	if(abs(y - pose_to_wp_angle) < np.pi / 2):
+		return True
+	elif(2 * np.pi - abs(y - pose_to_wp_angle) < np.pi / 2):
+		return True
+	else:
+		return False
 
 def print_graph():
 	for node in graph.arr:
@@ -147,14 +140,16 @@ def build_graph(joint_traj):
 		
 		dist = np.linalg.norm(joint_traj[i, :2] - graph_current_xy)
 		# print
-		if (dist > new_wp_resolution):
+		if (dist > NEW_WP_RESOLUTION):
 			# print("Distance: ", dist)
+			if(gps_point_forward(joint_traj[i, :2])):
+				
 			uav = Pose()
 			ugv = Pose()
 
 			uav.position.x = joint_traj[i, 0]
 			uav.position.y = joint_traj[i, 1]
-			uav.position.z = joint_traj[i, 2] + 18.0
+			uav.position.z = joint_traj[i, 2] + UAV_HEIGHT
 
 			ugv.position.x = joint_traj[i, 0]
 			ugv.position.y = joint_traj[i, 1]
@@ -167,11 +162,11 @@ def build_graph(joint_traj):
 			graph.current = temp.index
 
 			graph.last_nodes.append(graph.current)
-			if (len(graph.last_nodes) > deque_size):
-				while (len(graph.last_nodes) != deque_size):
+			if (len(graph.last_nodes) > DEQUE_SIZE):
+				while (len(graph.last_nodes) != DEQUE_SIZE):
 					graph.last_nodes.pop(0)
 
-			# if (len(graph.last_nodes) == deque_size):
+			# if (len(graph.last_nodes) == DEQUE_SIZE):
 			# 	quat = getYawFromSpline()
 			# 	graph.arr[graph.current].UAV.orientation.x = quat[0]
 			# 	graph.arr[graph.current].UAV.orientation.y = quat[1]
@@ -186,8 +181,8 @@ def build_graph(joint_traj):
 			uav_wp.pose = graph.arr[graph.current].UAV
 			uav_wp_pub.publish(uav_wp)
 			time.sleep(1)
-			with open('graph_nodes.npy', 'wb') as f:
-				np.save(f, np.array(graph.arr))
+			# with open('graph_nodes.npy', 'wb') as f:
+			# 	np.save(f, np.array(graph.arr))
 			return
 		# else:
 		# 	print("Okay")
@@ -215,7 +210,7 @@ def center_GPS_cb(data):
 	#     print(dist)
 	#     print(arr_1)
 	#     print(arr_2)
-	#     if (dist > new_wp_resolution):
+	#     if (dist > NEW_WP_RESOLUTION):
 			# uav = Pose()    
 			# ugv = Pose()
 
@@ -234,11 +229,11 @@ def center_GPS_cb(data):
 			# graph.current = temp.index
 
 			# graph.last_nodes.append(graph.current)
-			# if (len(graph.last_nodes) > deque_size):
-			# 	while (len(graph.last_nodes) != deque_size):
+			# if (len(graph.last_nodes) > DEQUE_SIZE):
+			# 	while (len(graph.last_nodes) != DEQUE_SIZE):
 			# 		graph.last_nodes.pop(0)
 
-			# if (len(graph.last_nodes) == deque_size):
+			# if (len(graph.last_nodes) == DEQUE_SIZE):
 			# 	quat = getYawFromSpline()
 			# 	graph.arr[graph.current].UAV.orientation.x = quat[0]
 			# 	graph.arr[graph.current].UAV.orientation.y = quat[1]
@@ -261,25 +256,25 @@ def current_uav_pose_cb(data):
 
 	start_uav = current_uav_pose.pose
 	start_ugv = start_uav
-	start_ugv.position.z -= uav_height
+	start_ugv.position.z -= UAV_HEIGHT
 
 	node = Node(start_uav, start_ugv, len(graph.arr))
 	graph.arr.append(node)
 
 	current_uav_xyz = np.array([data.pose.position.x, data.pose.position.y, data.pose.position.z])
 	current_uav_xyz = current_uav_xyz.reshape((3, 1)).T
+	
 	# Reached Waypoint
 	arr_1 = np.array([uav_wp.pose.position.x, uav_wp.pose.position.y])
 	arr_2 = np.array([current_uav_pose.pose.position.x, current_uav_pose.pose.position.y])
-
 	dist = np.linalg.norm(arr_1 - arr_2)
-	if (dist < reach_threshold):
+	if (dist < REACH_THRESHOLD):
 		get_GPS_flag.data = True
 		get_GPS_pub.publish(get_GPS_flag)
 
 	arr_1 = np.array([end_ugv.position.x, end_ugv.position.y])
 	dist = np.linalg.norm(arr_1 - arr_2)
-	if (dist < reach_threshold):
+	if (dist < REACH_THRESHOLD):
 		end_reached_flag.data = True
 		end_reached_mapping_pub.publish(end_reached_flag)	
 
@@ -313,7 +308,7 @@ def graph_planner():
 	start_ugv = Pose()
 	# start_uav = current_uav_pose.pose
 	# start_ugv = start_uav
-	# start_ugv.position.z = start_ugv.position.z - 18.0
+	# start_ugv.position.z = start_ugv.position.z - UAV_HEIGHT
 	
 
 	global end_ugv
