@@ -14,6 +14,11 @@ from drdo_interiit22.msg import customMessage
 
 from gazebo_msgs.msg import ModelStates	
 
+import scipy.interpolate as interpolate
+from scipy.interpolate import interp1d
+
+import matplotlib.pyplot as plt
+
 pi = math.pi
 inf = np.inf
 
@@ -43,7 +48,7 @@ Q_theta = 1000#200
 R1 = 0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
 R2 = 1e+4#10000
 
-error_allowed_in_g = 1e-100                                                     # error in contraints
+error_allowed_in_g = 1e-100                                                   # error in contraints
 
 
 
@@ -80,21 +85,85 @@ global total_path_points
 total_path_points = 0                                                                                                                                                                            
 global path                                                                                                                                       
 
+flag = 0
+
+def equidist_path(path,total_path_points):
+
+	# global total_path_points,path
+	
+	resolution = 0.1
+	t = np.linspace(0, total_path_points, total_path_points)/ 50
+
+	smallS = 10000
+	# print(t)
+	factor = 10
+	t_new = np.linspace(0, total_path_points*factor, total_path_points*factor)/ (50*factor)
+
+	x,y = path[:,0],path[:,1]
+
+
+	print (t.shape, x.shape)
+	tck = interpolate.splrep(t, x, s = smallS, k = 5)
+	x_new = interpolate.splev(t_new, tck, der=0)
+
+
+	tck = interpolate.splrep(t, y, s = smallS, k = 5)
+	y_new = interpolate.splev(t_new, tck, der=0)
+	# print(len(path_x))
+	# print(x_new.shape)
+ 
+
+
+
+
+	#equidist
+
+
+	distance = np.cumsum(np.sqrt( np.ediff1d(x_new, to_begin=0)**2 + np.ediff1d(y_new, to_begin=0)**2 ))
+
+	n_points = int( distance[-1]/resolution )
+
+	distance = distance/distance[-1]
+
+
+	fx, fy = interp1d( distance, x_new ), interp1d( distance, y_new )
+
+	alpha = np.linspace(0, 1, n_points)
+	x_regular, y_regular = fx(alpha), fy(alpha)
+
+	x_regular = np.expand_dims(x_regular, axis=-1)
+	y_regular = np.expand_dims(y_regular, axis=-1)
+
+
+	path_final = np.concatenate([x_regular, y_regular], axis = 1)
+	# plt.plot(path[:,0],path[:,1], color = 'r') 
+	# plt.plot(path_final[:,0],path_final[:,1], color = 'b')
+	path = path_final
+
+	# plt.show()
+	return path
+	
+
 #def pathfunc(Path):                                                                                                                                       
 def pathfunc():	
 	
-	
-	global total_path_points,path
-	if total_path_points == 0:
-		
-		# total_path_points = len(Path.poses)
-		# total_path_points = len(path_x)
-		# path = np.load("/home/satwik/catkin_ws/src/drdo-interiit22/graph_nodes.npy")
-		path = np.load("/home/satwik/catkin_ws/src/drdo-interiit22/src/Controller/path_final_world1_gazebo_coord.npy")
+	global flag
+	if flag == 0:
+		flag = 1
+		global total_path_points,path
+		if total_path_points == 0:
+			
+			# total_path_points = len(Path.poses)
+			# total_path_points = len(path_x)
+			# path = np.load("/home/satwik/catkin_ws/src/drdo-interiit22/graph_nodes.npy")
+			path = np.load("/home/rohit_dhamija/InterIIT22_ws/src/drdo_interiit22/src/Controller/ugv_waypoints.npy")
+			total_path_points = (path[:,0]).size
 
-		# path = np.array([[i.UGV.positi] for i in path])
-		total_path_points = (path[:,0]).size
-		#path = np.zeros((total_path_points,2))													
+			path = equidist_path(path,total_path_points)
+
+			# path = np.array([[i.UGV.positi] for i in path])
+			
+			#path = np.zeros((total_path_points,2))													
 
 		
 
@@ -154,11 +223,14 @@ def my_mainfunc():
 	# rospy.Subscriber('/gazebo/model_states' , ModelStates, odomfunc)    
 	rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)    
 
+	path = np.load("/home/rohit_dhamija/InterIIT22_ws/src/drdo_interiit22/src/Controller/ugv_waypoints.npy")
+	total_path_points = (path[:,0]).size
 
+	path = equidist_path(path,total_path_points)
      
 
 	#rospy.Subscriber('/astroid_path', Path, pathfunc)
-	pathfunc()
+	# pathfunc()
 
 	instance = rospy.Publisher('prius', Control, queue_size=10)
 
@@ -345,7 +417,7 @@ def my_mainfunc():
 				
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
-			#print(round(V,2)," ",KDTree(path).query(np.array([x,y]))[0],"   ", throttle )
+			print(round(V,2)," ",KDTree(path).query(np.array([x,y]))[0],"   ", throttle )
 			cross_track_error.append(KDTree(path).query(np.array([x,y]))[0])
 			
 			
