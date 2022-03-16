@@ -1,15 +1,32 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(drdo-interiit22)
+project(drdo_interiit22)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
+  std_msgs
+  message_generation
+  nav_msgs
+  geometry_msgs
+)
+
+add_message_files(
+  FILES
+  customMessage.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  nav_msgs
+  geometry_msgs
+
 )
 
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES interiit22-drdo
-#  CATKIN_DEPENDS roscpp rospy
+ CATKIN_DEPENDS roscpp rospy std_msgs message_runtime 
 #  DEPENDS system_lib
 )
 

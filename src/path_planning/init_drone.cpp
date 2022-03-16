@@ -28,7 +28,7 @@ std_msgs::Bool took_off;
 ros::Publisher local_pos_pub;
 ros::Publisher took_off_pub;
 
-double takeoff_height = 18.0;
+double takeoff_height = 25.0;
 double reach_threshold = 0.5;
 
 void state_cb(const mavros_msgs::State::ConstPtr& msg){

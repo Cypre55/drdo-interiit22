@@ -16,6 +16,8 @@ import time
 import tf
 from tf.transformations import quaternion_matrix
 from trajectory_msgs.msg import JointTrajectory,JointTrajectoryPoint
+# from src.projection2Dto3D import projection
+
 pre_est=np.array([0.,0.,1.]).reshape((1,1,3))
 iscar=False
 cx=-1
@@ -217,10 +219,14 @@ def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel co
     # cx, cy: Points in Pixel coordinates
     cx=cx.reshape(-1)
     cy=cy.reshape(-1)
+    # TODO: Identify why cx cy is out of range
     mask=cx<480
+    mask=mask&(cx>=0)
     mask=mask&(cy<640)
+    mask=mask&(cy>=0)
     cx=cx[mask]
     cy=cy[mask]
+
     cx=np.int32(cx)
     cy=np.int32(cy)
 
@@ -310,6 +316,7 @@ def segmenter():
         end_time=time.time()
 
         if path is not None:
+            # print(path[4].shape)
             publish_traj(left_pub,path[0],path[1],"LEFT")
             publish_traj(right_pub,path[2],path[3],"RIGHT")
             publish_traj(mid_pub,path[4],path[5],"MID")

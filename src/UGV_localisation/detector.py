@@ -19,7 +19,12 @@ import numpy as np
 from cv_bridge import CvBridge,CvBridgeError
 from message_filters import TimeSynchronizer, Subscriber, ApproximateTimeSynchronizer
 from tf.transformations import quaternion_matrix
-from car_messages.msg import customMessage
+from drdo_interiit22.msg import customMessage
+
+# import sys
+# sys.path.append("../")
+# from projection2Dto3D import projection
+
 
 pub1 = rospy.Publisher('car_state/complete', customMessage, queue_size=10)
 pub2 = rospy.Publisher('car_state/mask_contour', sensor_msgs.msg.Image, queue_size=10)
@@ -102,16 +107,19 @@ def detector():
             calculations()
 
 
-# def pose(cv_image,cv_depth,rmat):
-def projection(cx,cy,img,drone_pose,K=None): #takes 2 arrays of dim 1xn of x and y pixel coordinates and returns local 3d coordinates
+def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel coordinates and returns local 3d coordinates
     # Inputs:
     # cx, cy: Points in Pixel coordinates
     cx=cx.reshape(-1)
     cy=cy.reshape(-1)
+    # TODO: Identify why cx cy is out of range
     mask=cx<480
+    mask=mask&(cx>=0)
     mask=mask&(cy<640)
+    mask=mask&(cy>=0)
     cx=cx[mask]
     cy=cy[mask]
+
     cx=np.int32(cx)
     cy=np.int32(cy)
 
@@ -135,7 +143,7 @@ def projection(cx,cy,img,drone_pose,K=None): #takes 2 arrays of dim 1xn of x and
     # print("UNIT VEC",unit_vec)
     # print("DEPTH",dep)
     new_vec=unit_vec*dep
-    # global drone_pose
+    global drone_pose
     # transform_mat=np.eye(4)
     quaternion = (drone_pose.pose.orientation.x,drone_pose.pose.orientation.y,drone_pose.pose.orientation.z,drone_pose.pose.orientation.w)
     mat = tf.transformations.quaternion_matrix(quaternion)
@@ -193,8 +201,9 @@ def calculations():
     # CHANGE AND TRY
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
 
-    min_area = 2000
-    min_area = 2000
+    min_area = 0
+    max_area = 9999990000
+    
     pubMsg = customMessage()
     pubMsg.header = header_imgimg
     pubMsg.isMaskDetected.data = False
@@ -219,7 +228,8 @@ def calculations():
         approx = cv2.approxPolyDP(cnt, 0.009 * cv2.arcLength(cnt, True), True)
         # area = cv2.contourArea(cnt)
 
-        if area_ratio > 0.8 and area > min_area:
+        # print(area)
+        if  area > min_area and area < max_area : #area_ratio > 0.8 and
             pubMsg.isMaskDetected.data = True
             cv2.drawContours(image, [approx], 0, (200, 0, 0), 3, )
             # cv2.circle(image, (int(cx), int(cy)), 7, (255, 255, 255), -1)
