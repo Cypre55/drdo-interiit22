@@ -42,10 +42,11 @@ def odomfunc(odom):
 
 
 def real_data():
-    global x,y,V,theta
+    global x,y,z,V,theta
     rospy.init_node('real_data')
     x=None
     y=None
+    z=None
     V=None
     theta=None
 
@@ -58,17 +59,17 @@ def real_data():
     points = []
     i = 0
     while not rospy.is_shutdown():
-
-        msg = PoseStamped()
-        msg.header.seq = i
-        msg.pose.position.x = x
-        print(x)
-        msg.pose.position.y = y
-        # msg.pose.position.x = car
-        # msg.pose.position.y = path_y[i]
-        msg.pose.position.z = z # HARD CODED REPLACE
-        pub1.publish(msg)
-        i+=1
+        if x is not None:
+            msg = PoseStamped()
+            msg.header.seq = i
+            msg.pose.position.x = x
+            print(x)
+            msg.pose.position.y = y
+            # msg.pose.position.x = car
+            # msg.pose.position.y = path_y[i]
+            msg.pose.position.z = z + 18.0 # HARD CODED REPLACE
+            pub1.publish(msg)
+            i+=1
 
 
         rate.sleep()
