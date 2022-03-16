@@ -6,6 +6,7 @@ import numpy as np
 import tf.transformations
 from scipy.interpolate import UnivariateSpline
 from trajectory_msgs.msg import JointTrajectory,JointTrajectoryPoint
+from drdo_interiit22.msg import customMessage
 import math
 import time
 
@@ -20,6 +21,7 @@ PI = 3.1415
 REACH_THRESHOLD = 0.05
 NEW_WP_RESOLUTION = 3
 DEQUE_SIZE = 4
+
 
 class Node():
 	def __init__(self, uav, ugv, index):
@@ -107,6 +109,7 @@ def print_graph():
 		print("Y: ", node.UAV.position.y)
 
 def build_graph(joint_traj):
+	global direction
 	try:
 		if (joint_traj.shape == (0,)):
 			pass
@@ -119,30 +122,127 @@ def build_graph(joint_traj):
 	except Exception as e:
 		print("UAVXYZ Not Defined")
 		return
-	# print(joint_traj[:, :2].shape)
-	# print(current_uav_xyz[:, :2].shape)
-	# print(joint_traj[])
+
 	graph_current_xy = np.array([graph.arr[graph.current].UAV.position.x, graph.arr[graph.current].UAV.position.y])
-	graph_current_xy.reshape((2,1)).T
-	# print(graph_current_xy.shape)
-	# print(joint_traj[0, :2].shape)
+	graph_current_xy.reshape((1,2))
+
 	distances = np.linalg.norm(joint_traj[:, :2] - graph_current_xy, axis=1)
-	index = distances.argmin()
-	# print("Graph Current X: {0}, Y: {1}".format(graph_current_xy[0], graph_current_xy[1]))
-	# print("Nearest X: {0}, Y: {1}".format(joint_traj[index, 0], joint_traj[index, 1]))
-	# print_graph()
-	# print(distances[index])
-	# print(distances)
+	
+	# New Approach
+
+	mask = distances > NEW_WP_RESOLUTION
+
+	where_zero = np.where(mask==False)
+	# print(where_zero)
+
+	left_bound = where_zero[0][0] - 1
+	right_bound = where_zero[0][-1] + 1
+
+	
+
+	if (left_bound < 0):
+		left_bound = 0
+	if (right_bound >= joint_traj.shape[0]):
+		right_bound = joint_traj.shape[0] - 1
+
+
+	# print(distances[left_bound])
+	# print(np.linalg.norm(joint_traj[left_bound, :2] - graph_current_xy))
+	# print(distances[left_bound+1])
+	# print(np.linalg.norm(joint_traj[left_bound+1, :2] - graph_current_xy))
+
+	# print(distances[right_bound])
+	# print(np.linalg.norm(joint_traj[right_bound, :2] - graph_current_xy))
+
+	# ind_chosen = left_bound
+
+	try:
+		if direction == True:
+			pass
+	except:
+		# 0 left
+		# 1 right
+		direction = 1
+	
+
+	if (is_car != None and is_car == True):
+		vect = joint_traj[right_bound, 2] - graph_current_xy
+		car_vect = car_front - car_back 
+		dot = np.dot(vect, car_vect)
+		if dot > 0:
+			ind_chosen = right_bound
+			direction = 0
+
+	# print(direction)
+
+	# if direction == 1:
+	# 	ind_chosen = right_bound
+	# else:
+	# 	ind_chosen = left_bound
+
+	
+	
+	# uav = Pose()
+	# ugv = Pose()
+
+	# i = ind_chosen
+	# # i = 0
+
+	# uav.position.x = joint_traj[i, 0]
+	# uav.position.y = joint_traj[i, 1]
+	# uav.position.z = joint_traj[i, 2] + UAV_HEIGHT
+
+	# ugv.position.x = joint_traj[i, 0]
+	# ugv.position.y = joint_traj[i, 1]
+	# ugv.position.z = joint_traj[i, 2]
+
+	# temp = Node(uav, ugv, len(graph.arr))
+	# graph.arr.append(temp)
+	# temp.parent = graph.current
+	# graph.arr[graph.current].children.append(temp.index)
+	# graph.current = temp.index
+
+	# graph.last_nodes.append(graph.current)
+	# if (len(graph.last_nodes) > DEQUE_SIZE):
+	# 	while (len(graph.last_nodes) != DEQUE_SIZE):
+	# 		graph.last_nodes.pop(0)
+
+	# # if (len(graph.last_nodes) == DEQUE_SIZE):
+	# # 	quat = getYawFromSpline()
+	# # 	graph.arr[graph.current].UAV.orientation.x = quat[0]
+	# # 	graph.arr[graph.current].UAV.orientation.y = quat[1]
+	# # 	graph.arr[graph.current].UAV.orientation.z = quat[2]
+	# # 	graph.arr[graph.current].UAV.orientation.w = quat[3]
+	# # 	graph.arr[graph.current].UGV.orientation.x = quat[0]
+	# # 	graph.arr[graph.current].UGV.orientation.y = quat[1]
+	# # 	graph.arr[graph.current].UGV.orientation.z = quat[2]
+	# # 	graph.arr[graph.current].UGV.orientation.w = quat[3]
+
+	# print("Added Node point: ({0}, {1}, {2})".format(graph.arr[graph.current].UAV.position.x, graph.arr[graph.current].UAV.position.y, graph.arr[graph.current].UAV.position.z))
+	# uav_wp.pose = graph.arr[graph.current].UAV
+	# uav_wp_pub.publish(uav_wp)
+	# time.sleep(1)
+	# with open('ugv_waypoints.npy', 'wb') as f:
+	# 	UGV_waypoints = [np.array([i.UGV.position.x, i.UGV.position.y, i.UGV.position.z]) for i in graph.arr]
+	# 	np.save(f, np.array(UGV_waypoints))
+
 	# return
 
-	for i in reversed(range(index)):
+	################
+
+	# Other Approach
+	index = distances.argmin()
+
+	# POSSIBLE POINT OF FAILURE: FORWARD AND BACKWARD
+	list  = reversed(range(index))
+	if direction == 0:
+		list = range(index)
+	for i in list:
 		
 		dist = np.linalg.norm(joint_traj[i, :2] - graph_current_xy)
-		# print
+
 		if (dist > NEW_WP_RESOLUTION):
-			# print("Distance: ", dist)
-			# if(gps_point_forward(joint_traj[i, :2])):
-				
+
 			uav = Pose()
 			ugv = Pose()
 
@@ -171,7 +271,7 @@ def build_graph(joint_traj):
 			# 	graph.arr[graph.current].UAV.orientation.y = quat[1]
 			# 	graph.arr[graph.current].UAV.orientation.z = quat[2]
 			# 	graph.arr[graph.current].UAV.orientation.w = quat[3]
-			# 	graph.arr[graph.current].UGV.orientation.x = quat[0]
+			# 	graph.arr[graph.currient].UGV.orientation.x = quat[0]
 			# 	graph.arr[graph.current].UGV.orientation.y = quat[1]
 			# 	graph.arr[graph.current].UGV.orientation.z = quat[2]
 			# 	graph.arr[graph.current].UGV.orientation.w = quat[3]
@@ -181,14 +281,11 @@ def build_graph(joint_traj):
 			uav_wp_pub.publish(uav_wp)
 			time.sleep(1)
 			with open('ugv_waypoints.npy', 'wb') as f:
-				UGV_waypoints = [np.array([i.UGV.position.x, i.UGV.position.y]) for i in graph.arr]
+				UGV_waypoints = [np.array([i.UGV.position.x, i.UGV.position.y, i.UGV.position.z]) for i in graph.arr]
 				np.save(f, np.array(UGV_waypoints))
 
 			return
-		# else:
-		# 	print("Okay")
-	# print()
-	# print(index)
+	############
 
 def center_GPS_cb(data):
 	# global joint_traj_arr    
@@ -279,6 +376,12 @@ def current_uav_pose_cb(data):
 		end_reached_flag.data = True
 		end_reached_mapping_pub.publish(end_reached_flag)	
 
+def car_state_cb(data):
+	
+	is_car = data.isMaskDetected.data
+	car_back = np.array([[data.car_back.x, data.car_back.y]])
+	car_front = np.array([[data.car_front.x, data.car_front.y]])
+
 
 def graph_planner():
 	rospy.init_node('graph_planner')
@@ -297,6 +400,7 @@ def graph_planner():
 
 	center_GPS_sub = rospy.Subscriber("/lane/mid", JointTrajectory, center_GPS_cb)
 	current_uav_pose_sub = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, current_uav_pose_cb)
+	car_state_sub = rospy.Subscriber("/car_state/complete", customMessage, car_state_cb)
 
 	global graph
 	graph = Graph()
@@ -307,6 +411,11 @@ def graph_planner():
 	global start_uav, start_ugv
 	start_uav = Pose()
 	start_ugv = Pose()
+
+	global car_back, car_front, is_car
+	car_back = None
+	car_front = None
+	is_car = None
 	# start_uav = current_uav_pose.pose
 	# start_ugv = start_uav
 	# start_ugv.position.z = start_ugv.position.z - UAV_HEIGHT
