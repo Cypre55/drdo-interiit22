@@ -26,7 +26,8 @@ from drdo_interiit22.msg import customMessage
 # from projection2Dto3D import projection
 
 pub1 = rospy.Publisher('car_state/complete', customMessage, queue_size=10)
-pub2 = rospy.Publisher('car_state/mask_contour', sensor_msgs.msg.Image, queue_size=10)
+# pub2 = rospy.Publisher('car_state/mask_contour', sensor_msgs.msg.Image, queue_size=10)
+pub2 = rospy.Publisher('car_state/detected_contour', sensor_msgs.msg.Image, queue_size=10)
 
 drone_pose = PoseStamped()
 
@@ -332,8 +333,9 @@ def calculations():
             # cv2.waitKey(1)
 
             result = [cx, cy, angle]
-            cv2.imshow("images", image)
-            cv2.waitKey(1)
+            # cv2.imshow("images", image)
+            # cv2.waitKey(1)
+            pub2.publish(bridge.cv2_to_imgmsg(image))
 
 
             # ARCHIT CODE
@@ -427,7 +429,7 @@ def calculations():
                 pubMsg.car_state.twist.twist.angular.z = 0
 
                 pub1.publish(pubMsg)
-                pub2.publish(bridge.cv2_to_imgmsg(mask))
+                # pub2.publish(bridge.cv2_to_imgmsg(mask))
 
                 # pub4.publish(final_vel)
                 # pub3.publish(isMask)
