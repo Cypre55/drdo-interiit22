@@ -71,6 +71,18 @@ def poseCallback(data):
     # rmat[2][3] = data.pose.position.z
     drone_pose = data
 
+def maskCallback(data):
+    bridge = CvBridge()
+    try:
+        cv_mask = bridge.imgmsg_to_cv2(data,"bgr8")
+    except CvBridgeError as e:
+        print(e)
+    global maskimg,header_maskimg
+    header_maskimg = data.header
+    maskimg = cv_mask
+
+
+
 # kalman filter data
 #
 #
@@ -101,6 +113,7 @@ def detector():
     rospy.Subscriber("/depth_camera/depth/image_raw", Image, depthCallback)
     rospy.Subscriber("/depth_camera/rgb/image_raw", Image, rgbCallback)
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, poseCallback)
+    rospy.Subscriber("/mask",Image,maskCallback)
     # print("Subscribed")
     while not rospy.is_shutdown():
         if imgimg is not None and im2 is not None and drone_pose is not None:
@@ -194,14 +207,16 @@ def calculations():
     gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
     gray = cv2.bitwise_not(gray)
 
-    thresh = cv2.threshold(gray, 210, 255, cv2.THRESH_BINARY_INV)[1]
+    # thresh = cv2.threshold(gray, 210, 255, cv2.THRESH_BINARY_INV)[1]
+    thresh = 255-cv_mask
+
 
     cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
     # CHANGE AND TRY
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
 
-    min_area = 0
+    min_area = 400
     max_area = 9999990000
     
     pubMsg = customMessage()
@@ -229,7 +244,7 @@ def calculations():
         # area = cv2.contourArea(cnt)
 
         # print(area)
-        if  area > min_area and area < max_area : #area_ratio > 0.8 and
+        if  area_ratio>0.8 and area > min_area and area < max_area : #area_ratio > 0.8 and
             pubMsg.isMaskDetected.data = True
             cv2.drawContours(image, [approx], 0, (200, 0, 0), 3, )
             # cv2.circle(image, (int(cx), int(cy)), 7, (255, 255, 255), -1)
