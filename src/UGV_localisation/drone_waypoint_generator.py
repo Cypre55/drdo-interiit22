@@ -25,7 +25,7 @@ def odomfunc(odom):
     z = odom.car_state.pose.pose.position.z
     # V = math.sqrt(odom.twist.twist.linear.x**2 + odom.twist.twist.linear.y**2)
 
-    # quaternions =  odom.pose.pose.orientation
+    quaternions =  odom.car_state.pose.pose.orientation
 
     #index = odom.name.index('prius')
 
@@ -35,18 +35,17 @@ def odomfunc(odom):
 
     # quaternions =  odom.pose[index].orientation
 
-    # quaternions_list = [quaternions.x,quaternions.y,quaternions.z,quaternions.w]
-    # roll,pitch,yaw = euler_from_quaternion(quaternions_list)
-    # theta = yaw
-    theta = odom.car_state.pose.pose.orientation.x
+    quaternions_list = [quaternions.x,quaternions.y,quaternions.z,quaternions.w]
+    roll,pitch,yaw = euler_from_quaternion(quaternions_list)
+    theta = yaw
+    
 
 
 def real_data():
-    global x,y,z,V,theta
+    global x,y,V,theta
     rospy.init_node('real_data')
     x=None
     y=None
-    z=None
     V=None
     theta=None
 
@@ -59,17 +58,17 @@ def real_data():
     points = []
     i = 0
     while not rospy.is_shutdown():
-        if x is not None:
-            msg = PoseStamped()
-            msg.header.seq = i
-            msg.pose.position.x = x
-            print(x)
-            msg.pose.position.y = y
-            # msg.pose.position.x = car
-            # msg.pose.position.y = path_y[i]
-            msg.pose.position.z = z + 18.0 # HARD CODED REPLACE
-            pub1.publish(msg)
-            i+=1
+
+        msg = PoseStamped()
+        msg.header.seq = i
+        msg.pose.position.x = x
+        print(x)
+        msg.pose.position.y = y
+        # msg.pose.position.x = car
+        # msg.pose.position.y = path_y[i]
+        msg.pose.position.z = z # HARD CODED REPLACE
+        pub1.publish(msg)
+        i+=1
 
 
         rate.sleep()
