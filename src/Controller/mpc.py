@@ -32,7 +32,7 @@ n_controls = 2
 N =67#73                                                                           # Prediction horizon(same as control horizon)
 error_allowed = 0.1
 U_ref = np.array([0,0], dtype ='f')                                             # U_ref contains referance acc and steer
-V_ref = 6#10                                                                      # referance velocity 
+V_ref = 0.5#6#10                                                                      # referance velocity 
 
 
 Q_x = 250000#3000                                                                      # gains to control error in x,y,V,theta during motion
@@ -49,8 +49,8 @@ error_allowed_in_g = 1e-100                                                     
 
 
 
-"""# parameters that depend on simulator 
-"""odom.car_state.pose.pose.position.x
+"""# parameters that depend on simulator """
+
 
 throttle_constant = 4.2                                                      # throttle_constant = acc/throttle
 steer_constant = 40*pi/180                                                   # steer_constant = steer/steer_input
@@ -89,7 +89,10 @@ def pathfunc():
 		
 		# total_path_points = len(Path.poses)
 		# total_path_points = len(path_x)
-		path = np.load("/home/rohit_dhamija/InterIIT22_ws/src/drdo_interiit22/src/Controller/path_final_world1_gazebo_coord.npy")
+		# path = np.load("/home/satwik/catkin_ws/src/drdo-interiit22/graph_nodes.npy")
+		path = np.load("/home/satwik/catkin_ws/src/drdo-interiit22/src/Controller/path_final_world1_gazebo_coord.npy")
+
+		# path = np.array([[i.UGV.positi] for i in path])
 		total_path_points = (path[:,0]).size
 		#path = np.zeros((total_path_points,2))													
 
@@ -132,6 +135,8 @@ def odomfunc(odom):
 	y = odom.car_state.pose.pose.position.y
 
 	quaternions =  odom.car_state.pose.pose.orientation
+
+	V = math.sqrt(odom.car_state.twist.twist.linear.x**2 + odom.car_state.twist.twist.linear.y**2)
 
 
 

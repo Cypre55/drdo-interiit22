@@ -287,7 +287,7 @@ def publish_traj(pub,cx,cy,name):
         pt=JointTrajectoryPoint()
         pt.positions=path[:,i]
         traj.points.append(pt)
-    print("publishing")
+    # print("publishing")
     pub.publish(traj)
 
 def segmenter():
@@ -316,7 +316,7 @@ def segmenter():
             path=find_path_without_car(dep)
         end_time=time.time()
 
-        print(path)
+        # print(path)
         if path is not None:
             # print(path[4].shape)
             publish_traj(left_pub,path[0],path[1],"LEFT")
