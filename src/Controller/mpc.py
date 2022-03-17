@@ -37,7 +37,7 @@ n_controls = 2
 N =67#73                                                                           # Prediction horizon(same as control horizon)
 error_allowed = 0.1
 U_ref = np.array([0,0], dtype ='f')                                             # U_ref contains referance acc and steer
-V_ref = 0.5#6#10                                                                      # referance velocity 
+V_ref = 0.3#6#10                                                                      # referance velocity 
 
 
 Q_x = 250000#3000                                                                      # gains to control error in x,y,V,theta during motion
@@ -45,8 +45,8 @@ Q_y = 250000#3000
 Q_V = 1000#1000000                                                                          
 Q_theta = 1000#200 
 
-R1 = 1e+8#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
-R2 = 1e+4#10000
+R1 = 1e+8	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
+R2 = 1e+7#10000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
 
@@ -223,7 +223,7 @@ def my_mainfunc():
 	# rospy.Subscriber('/gazebo/model_states' , ModelStates, odomfunc)    
 	rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)    
 
-	path = np.load("/home/rohit_dhamija/InterIIT22_ws/src/drdo_interiit22/src/Controller/ugv_waypoints.npy")
+	path = np.load("/home/theabyss/interiit_new_ws/src/drdo_interiit22/src/Controller/ugv_waypoints.npy")
 	total_path_points = (path[:,0]).size
 
 	path = equidist_path(path,total_path_points)
