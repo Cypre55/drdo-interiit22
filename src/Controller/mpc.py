@@ -95,7 +95,7 @@ def equidist_path(path,total_path_points):
 	t = np.linspace(0, total_path_points, total_path_points)/ 50
 
 	smallS = 10000
-	# print(t)
+	
 	factor = 10
 	t_new = np.linspace(0, total_path_points*factor, total_path_points*factor)/ (50*factor)
 
