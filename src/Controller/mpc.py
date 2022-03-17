@@ -42,11 +42,11 @@ V_ref = 0.3#6#10                                                                
 
 Q_x = 250000#3000                                                                      # gains to control error in x,y,V,theta during motion
 Q_y = 250000#3000 
-Q_V = 1000#1000000                                                                          
+Q_V = 10#1000000                                                                          
 Q_theta = 1000#200 
 
-R1 = 1e+8	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
-R2 = 1e+7#10000
+R1 = 0.9*1e+11	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
+R2 = 2*1e+6#10000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
 
@@ -403,30 +403,27 @@ def my_mainfunc():
 			throttle = acc / throttle_constant
 			steer_input = steer/steer_constant
 
-			msg.throttle = throttle                                  
+			
+			if throttle>0.08:
+				throttle = 0.08   
+			msg.throttle = throttle                              
 			msg.brake = 0.0 
 			msg.steer = steer_input
-			msg.shift_gears =2
+			# msg.shift_gears =2
 			if throttle < 0:
 				# msg.shift_gears =3                                              # reverse gear
 				# throttle = -throttle
 				msg.throttle = 0.0                                  
-				msg.brake = -throttle * 80 												#brake
+				msg.brake = 1												#brake
 				msg.steer = steer_input
-				msg.shift_gears =2
-				
+				# msg.shift_gears =2
+			
+			if V >4.0:
+				msg.brake = 0.29
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
-			print(round(V,2)," ",KDTree(path).query(np.array([x,y]))[0],"   ", throttle )
+			print("Throttle", msg.throttle )
 			cross_track_error.append(KDTree(path).query(np.array([x,y]))[0])
-			
-			
-			
-			
-			
-		
-
-			
 
 
 			P[0:n_states] = [x,y,V,theta] 
