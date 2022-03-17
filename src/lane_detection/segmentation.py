@@ -8,6 +8,7 @@ from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from cv_bridge import CvBridge, CvBridgeError
 import cv2 as cv
+import cv2
 import numpy as np
 from skimage.morphology import binary_erosion,disk,skeletonize,binary_dilation
 from scipy import ndimage as ndi
@@ -16,6 +17,7 @@ import time
 import tf
 from tf.transformations import quaternion_matrix
 from trajectory_msgs.msg import JointTrajectory,JointTrajectoryPoint
+import math
 # from src.projection2Dto3D import projection
 
 pre_est=np.array([0.,0.,1.]).reshape((1,1,3))
@@ -23,6 +25,7 @@ iscar=False
 cx=-1
 cy=-1
 dep=np.zeros((480,640))
+img=np.zeros((480,640,3))
 mask=np.zeros((480,640))
 drone_pose=PoseStamped()
 def fit_spline(x,y,xx=10):
@@ -78,6 +81,13 @@ def find_grad_sobel(img):
     X=cv.Sobel(img,cv.CV_64F,1,0,5)
     Y=cv.Sobel(img,cv.CV_64F,0,1,5)
     Z=np.ones_like(X)
+    der=np.stack((X,Y,Z),axis=2)
+    return der
+
+def find_grad_sobel2d(img):
+    X=cv.Sobel(img,cv.CV_64F,1,0,5)
+    Y=cv.Sobel(img,cv.CV_64F,0,1,5)
+    Z=np.zeros_like(X)
     der=np.stack((X,Y,Z),axis=2)
     return der
 
@@ -156,9 +166,68 @@ def find_path_with_car():
     my1=np.int32(my1)
     return [lx,ly,rx,ry,mx1,my1]
 
-def find_path_without_car(dep):
-    norms=find_grad_sobel(dep)
-    norms=normalized(norms,axis=2)
+def apply_kmeans(img, K=2):
+    # print(img.shape)
+    img = cv2.bilateralFilter(img.astype(np.uint8),15,75,300)
+    Z = img.reshape((-1,3))
+    Z = np.float32(Z)
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    # define criteria, number of clusters(K) and apply kmeans()
+    ret,label,center=cv2.kmeans(Z,K,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
+    # Now convert back into uint8, and make original image
+    center = np.uint8(center)
+    res = center[label.flatten()]
+    res2 = res.reshape((img.shape))
+    return res2
+
+def biggest_connected_component(frame):
+    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(frame, connectivity=4)
+    max_label, max_size = max([(i, stats[i, cv2.CC_STAT_AREA]) for i in range(1, nb_components)], key=lambda x: x[1])
+
+    img2 = np.zeros(output.shape)
+    img2[output == max_label] = 255
+    return img2
+
+def find_path_without_car(dep,img):
+
+    # l1 = cv.GaussianBlur(dep,(5,5),0)
+    # l2 = cv.GaussianBlur(dep,(11,11),0)
+    # dep_ = l1 - l2
+    # dep_ = (dep_ - np.min(dep_))/(np.max(dep_)-np.min(dep_))
+    # dep_ = dep_*255
+    # cv.imshow("dep", np.uint8(dep_))
+    kmean_output = apply_kmeans(img)
+
+
+    if(kmean_output.shape==(480,640)): #dunno why the first elem is coming to be (480,640,3)
+        # max_val = kmean_output.max()
+        # min_val = kmean_output.min()
+        # print(max_val)
+        # print(min_val)
+        # kmean_output[np.logical_and(kmean_output>min_val-20 , kmean_output<min_val+20)] = 0
+        # kmean_output[np.logical_and(kmean_output>max_val-20 , kmean_output<max_val+20)] = 255
+        print(kmean_output.max())
+        print(kmean_output.min())
+
+
+        kmean_output[kmean_output > 80] = 255  # a bit wrong, need to fix it
+        kmean_output[kmean_output <= 80] = 0
+        kmean_output[np.isnan(dep)] = 0
+        biggest_comp = biggest_connected_component(kmean_output)
+        cv.imshow("KMean Output", kmean_output)
+        cv.imshow("Biggest Comp", biggest_comp)
+
+    cv.imshow("Depth", dep)
+
+    norms=find_grad_sobel(dep)  
+    norms = normalized(norms,axis=2)  
+    # norms=norms/np.expand_dims(np.linalg.norm(norms, axis = -1), axis =-1)
+    cv.imshow("surface normal", np.uint8(255*norms/np.max(norms)))
+
+    cv.imshow("Input Image", img)
+    # cv.imshow("KMean Output", kmean_output)
+    
+    cv.waitKey(1)
     dp=np.sum(norms*pre_est,axis=2)
     lane=dp>0.99
     lane=binary_erosion(lane,disk(5))
@@ -197,6 +266,15 @@ def callback(data):
         print(e)
     global dep
     dep=np.array(frame,dtype=np.float32)
+
+def rgbback(data):
+    bridge=CvBridge()
+    try:
+        frame=bridge.imgmsg_to_cv2(data,"mono8")
+    except CvBridgeError as e:
+        print(e)
+    global img
+    img=frame
 
 def carback(data):
     global iscar
@@ -293,6 +371,7 @@ def segmenter():
     rospy.init_node('segmenter')
     rospy.Subscriber('/car_state/is_car',Bool,carback)
     rospy.Subscriber('/car_state/mask',Image,maskback)
+    rospy.Subscriber("/depth_camera/rgb/image_raw",Image, rgbback)
     rospy.Subscriber("/depth_camera/depth/image_raw", Image, callback)
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, poseback)
     left_pub=rospy.Publisher('/lane/left',JointTrajectory,queue_size=1)
@@ -302,7 +381,7 @@ def segmenter():
     bridge=CvBridge()
     while not rospy.is_shutdown():
         start_time=time.time()
-        global iscar, dep
+        global iscar, dep, img
         try:
             if iscar == True:
                 pass
@@ -312,7 +391,7 @@ def segmenter():
         if iscar:
             path=find_path_with_car(dep)
         else:
-            path=find_path_without_car(dep)
+            path=find_path_without_car(dep,img)
         end_time=time.time()
 
         if path is not None:

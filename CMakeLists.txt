@@ -37,6 +37,8 @@ include_directories(
 )
 
 add_executable(init_drone src/path_planning/init_drone.cpp)
+target_link_libraries(init_drone ${catkin_LIBRARIES})
+add_dependencies(init_drone ${drdo_interiit22_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 target_link_libraries(init_drone
   ${catkin_LIBRARIES}
