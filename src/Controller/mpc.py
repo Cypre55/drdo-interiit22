@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# from drdo_interiit22.src.Controller.kalman_dummy import R
 import rospy
 from prius_msgs.msg import Control    
 from nav_msgs.msg import Odometry 
@@ -40,13 +41,13 @@ U_ref = np.array([0,0], dtype ='f')                                             
 V_ref = 0.3#6#10                                                                      # referance velocity 
 
 
-Q_x = 250000#3000                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 250000#3000 
+Q_x = 230000#3000                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 230000#3000 
 Q_V = 10#1000000                                                                          
 Q_theta = 1000#200 
 
-R1 = 0.9*1e+11	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
-R2 = 2*1e+6#10000
+R1 = 1e+11	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
+R2 = 1e+7#10000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
 
@@ -86,6 +87,11 @@ total_path_points = 0
 global path                                                                                                                                       
 
 flag = 0
+
+pose_for_quiver_x = []
+pose_for_quiver_y = []
+pose_for_quiver_u = []
+pose_for_quiver_v = []
 
 def equidist_path(path,total_path_points):
 
@@ -173,11 +179,58 @@ def pathfunc():
 		# path[i][0] = path_x[i] 
 		# path[i][1] = path_y[i]	   	
 
+Xnp = np.zeros((6, 1), dtype = np.float32)
+# xpred = []
+# ypred = []
+# xtpred = []
+# ytpred = []
+
+dt = 0.1 #
+F = np.array([[1, 0, dt,  0, 0.5*dt*dt,         0],
+				[0, 1,  0, dt,         0, 0.5*dt*dt],
+				[0, 0,  1,  0,        dt,         0],
+				[0, 0,  0,  1,         0,        dt],
+				[0, 0,  0,  0,         1,         0],
+				[0, 0,  0,  0,         0,         1]], dtype=np.float32) 
+u = np.zeros((6, 1), dtype=np.float32) #
+H = np.array([[1, 0, 0, 0, 0, 0],
+				[0, 1, 0, 0, 0, 0],
+				[0, 0, 1, 0, 0, 0],
+				[0, 0, 0, 1, 0, 0]], dtype=np.float32)
+P = np.array([[1, 0, 0, 0, 0, 0], 
+				[0, 1, 0, 0, 0, 0],
+				[0, 0, 1, 0, 0, 0],
+				[0, 0, 0, 1, 0, 0],
+				[0, 0, 0, 0, 1, 0],
+				[0, 0, 0, 0, 0, 1]], dtype=np.float32) # estimate uncertainty
+R = np.array([[1, 0, 0, 0],
+				[0, 1, 0, 0],
+				[0, 0, 1, 0],
+				[0, 0, 0, 1]], dtype=np.float32) # measurement uncertainty
+I = np.identity(6, dtype=np.float32)
+
+P *= 1
+R *= 1
+
+def kalman(z):
+	global Xnp, F, u, H, P, R, I
+
+	y = z - np.matmul(H,Xnp)
+	S = np.matmul(H,np.matmul(P,H.T)) + R
+	Sinv = np.linalg.inv(S)
+	k = np.matmul(P,(np.matmul((H.T),Sinv)))
+	Xnp = Xnp + np.matmul(k,y)
+	P = np.matmul((I - np.matmul(k,H)),P)
+
+	Xnp = np.matmul(F,Xnp) + u
+	P = np.matmul(F,np.matmul(P,F.T))
+
+
 
 def odomfunc(odom):
 	
 	global x,y,V,theta
-
+	global pose_for_quiver
 	
 	# x = odom.pose.pose.position.x 
 	# y = odom.pose.pose.position.y 
@@ -207,12 +260,18 @@ def odomfunc(odom):
 
 	V = math.sqrt(odom.car_state.twist.twist.linear.x**2 + odom.car_state.twist.twist.linear.y**2)
 
+	curr_pose = [x, y, odom.car_state.twist.twist.linear.x, odom.car_state.twist.twist.linear.y]
 
+	kalman(curr_pose)
+
+	pose_for_quiver_x.append(curr_pose[0])
+	pose_for_quiver_y.append(curr_pose[1])
+	pose_for_quiver_u.append(curr_pose[2])
+	pose_for_quiver_v.append(curr_pose[3])
 
 	quaternions_list = [quaternions.x,quaternions.y,quaternions.z,quaternions.w]
 	roll,pitch,yaw = euler_from_quaternion(quaternions_list)
 	theta = yaw
-
 
 
 
@@ -227,6 +286,8 @@ def my_mainfunc():
 	total_path_points = (path[:,0]).size
 
 	path = equidist_path(path,total_path_points)
+	# path_new = path[::10]
+	# print("path shape,",path_new.shape)
      
 
 	#rospy.Subscriber('/astroid_path', Path, pathfunc)
@@ -369,6 +430,10 @@ def my_mainfunc():
 
 	initial_con = ca.DM.zeros((n_controls*N,1))                                                                         #initial search values of control matrix are zero
 
+	x_hist = []
+	y_hist= []
+
+	
 
 	try:
 		while ( ca.norm_2( P[0:n_states-1].reshape((n_states-1,1)) - X_target[0:n_states-1] ) > error_allowed  ) :                                                                                         
@@ -403,9 +468,25 @@ def my_mainfunc():
 			throttle = acc / throttle_constant
 			steer_input = steer/steer_constant
 
+			plt.clf()
+			plt.plot(path[:800,0],path[:800,1])
+
+			x_hist.append(x)
+			y_hist.append(y)
+
+			# print("path shape,",path.shape)
+
+			global pose_for_quiver_x, pose_for_quiver_y, pose_for_quiver_u, pose_for_quiver_v, Xnp
 			
-			if throttle>0.08:
-				throttle = 0.08   
+			# print(pose_for_quiver)
+			# print((X[0]))
+			plt.quiver(Xnp[0],Xnp[1],Xnp[2],Xnp[3])
+
+			# plt.scatter(x_hist,y_hist,color='red',marker='.')
+			plt.pause(0.00001)
+			
+			if throttle>0.01:
+				throttle = 0.01   
 			msg.throttle = throttle                              
 			msg.brake = 0.0 
 			msg.steer = steer_input
@@ -414,12 +495,12 @@ def my_mainfunc():
 				# msg.shift_gears =3                                              # reverse gear
 				# throttle = -throttle
 				msg.throttle = 0.0                                  
-				msg.brake = 1												#brake
+				msg.brake = -80*throttle												#brake
 				msg.steer = steer_input
 				# msg.shift_gears =2
 			
-			if V >4.0:
-				msg.brake = 0.29
+			if V >3.5:
+				msg.brake = 0.3
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
 			print("Throttle", msg.throttle )
@@ -458,6 +539,7 @@ def my_mainfunc():
 				initial_con[i] = X_U_sol[n_states*(N+1)+i+n_controls]                                             #initial search value of control for next iteration should be the predicted one for that iteration
 
 			rate.sleep()
+		plt.show()
 
 	except KeyboardInterrupt:
 

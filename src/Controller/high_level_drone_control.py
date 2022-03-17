@@ -11,6 +11,13 @@ positions = np.array([0,0,0])
 velocities = np.array([0,0,0])
 vel_drones =  np.array([0,0,0])
 pos_drones =  np.array([0,0,0])
+# Kpx = 0.4
+# Kpy = 0.4
+# Kpz = 1
+# Kdx = 0.015
+# Kdy = 0.015
+# Kdz = 1
+
 Kpx = 0.4
 Kpy = 0.4
 Kpz = 1
@@ -64,7 +71,8 @@ def main():
 		msg = Twist()
 		msg.linear.x,msg.linear.y,msg.linear.z = vel[0], vel[1], 0  #vel[2]
 		check = (vel[0]**2+vel[1]**2)**0.5
-		if check > 5:
+		if check > 6:
+			print("limiting velocity")
 			msg.linear.x = vel[0]*5/check 
 			msg.linear.y = vel[1]*5/check
 		instance.publish(msg)
