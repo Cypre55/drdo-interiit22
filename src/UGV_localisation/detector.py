@@ -26,7 +26,10 @@ from drdo_interiit22.msg import customMessage
 # from projection2Dto3D import projection
 
 pub1 = rospy.Publisher('car_state/complete', customMessage, queue_size=10)
+<<<<<<< HEAD
 
+=======
+>>>>>>> 701faa06a11b6be5d4780046f980be02ef5ea026
 # pub2 = rospy.Publisher('car_state/mask_contour', sensor_msgs.msg.Image, queue_size=10)
 pub2 = rospy.Publisher('car_state/detected_contour', sensor_msgs.msg.Image, queue_size=10)
 
@@ -258,6 +261,7 @@ def calculations():
         # print(area)
         if  area_ratio>0.8 and area > min_area and area < max_area : #area_ratio > 0.8 and
             pubMsg.isMaskDetected.data = True
+<<<<<<< HEAD
             # cv2.drawContours(image, [box],0,(200,0,0),3,)
             cv2.drawContours(image, [approx], 0, (0, 200, 0), 2, )
 
@@ -266,6 +270,11 @@ def calculations():
             # cv2.imwrite("car_contour_bounding_rect.png",image)
             cv2.circle(image, (int(cx), int(cy)), 7, (0, 0, 255), -1)
             # cv2.imwrite("car_contour_bounding_rect_centre.png",image)
+=======
+            cv2.drawContours(image, [box], 0, (200, 0, 0), 3, )
+            cv2.drawContours(image, [approx], 0, (0, 200, 0), 2, )
+            cv2.circle(image, (int(cx), int(cy)), 7, (0, 0, 255), -1)
+>>>>>>> 701faa06a11b6be5d4780046f980be02ef5ea026
             # CREATING MASK OF CONTOURx
             img = image[:, :, 0].astype('uint8')
             mask = np.zeros(img.shape, np.uint8)
@@ -278,8 +287,13 @@ def calculations():
             cv2.drawContours(mask_rect, [box], 0, (255), thickness=-1)
             subtracted = cv2.subtract(mask_rect, cv_mask)
             ret2, th2 = cv2.threshold(subtracted, 100, 255, cv2.THRESH_BINARY)
+<<<<<<< HEAD
             # subtracted = cv2.subtract(mask_rect,th2)
             # cv2.imwrite("subtracted_mask.png",subtracted)
+=======
+            subtracted = cv2.subtract(mask_rect, th2)
+
+>>>>>>> 701faa06a11b6be5d4780046f980be02ef5ea026
             white = np.argwhere(th2 == 255)
             white = np.transpose(white)
             # cv2.imshow("thresh",th2)
@@ -320,6 +334,7 @@ def calculations():
                 # coord = projection(np.array([ybot, cy, ytop]), np.array([xbot, cx, xtop]), cv_depth, drone_pose)
                 # coord = projection(np.array([xtop]), np.array([ytop]), cv_depth, drone_pose)
 <<<<<<< HEAD
+<<<<<<< HEAD
                 cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
                 cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
                 cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
@@ -328,6 +343,11 @@ def calculations():
                 # cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
                 # cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
 >>>>>>> 410fa87a32dd5576e8e61954c9ac9455749fb883
+=======
+                # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+                # cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
+                # cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
+>>>>>>> 701faa06a11b6be5d4780046f980be02ef5ea026
             else:
                 # cv2.line(image, (int(xbot), int(ybot)), (int(cx), int(cy)), (0, 0, 255), 3)
 
@@ -340,6 +360,7 @@ def calculations():
                 yfront = ybot
                 # SWAPPED X Y for Projection to work
 <<<<<<< HEAD
+<<<<<<< HEAD
                 coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
                 
                 # coord = projection(np.array([xbot]), np.array([ybot]), cv_depth, drone_pose)
@@ -350,6 +371,10 @@ def calculations():
 =======
                 # coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
                 # coord = projection(np.array([xbot]), np.array([ybot]), cv_depth, drone_pose)
+=======
+                # coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
+                # coord = projection(np.array([xbot]), np.array([ybot]), cv_depth, drone_pose)
+>>>>>>> 701faa06a11b6be5d4780046f980be02ef5ea026
                 # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
                 # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
                 # cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
@@ -358,7 +383,10 @@ def calculations():
             # cv2.circle(image,(int(xfront),int(yfront)),7,(255,0,0),-1)
             # cv2.imshow("image",image)
             # cv2.waitKey(0)
+<<<<<<< HEAD
 >>>>>>> 410fa87a32dd5576e8e61954c9ac9455749fb883
+=======
+>>>>>>> 701faa06a11b6be5d4780046f980be02ef5ea026
             # angle = angle * 180 / np.pi
             # x_y_yaw = str(cx) + "," + str(cy) + "," + str(angle)
             # cv2.putText(image, x_y_yaw, (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
