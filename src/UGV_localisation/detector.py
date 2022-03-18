@@ -396,6 +396,9 @@ def calculations():
     # cv2.imshow("depth",cv_temp)
     # cv2.imwrite("depth.png",cv_temp)
     # cv2.waitKey(0)
+    # cv2.imshow("rgb",imgimg)
+    # cv2.imwrite("rgb.png",imgimg)
+    # cv2.waitKey(0)
     # try:
     #     cv_image = bridge.imgmsg_to_cv2(data2, "bgr8")
     #     cv_depth = bridge.imgmsg_to_cv2(data1, "32FC1")
@@ -436,6 +439,7 @@ def calculations():
     pubMsg = customMessage()
     pubMsg.header = header_imgimg
     pubMsg.isMaskDetected.data = False
+    pubMsg.isCarNinety.data = False
     # isMask = False
     # gl_arr=[]
     for cnt in cnts:
@@ -480,8 +484,8 @@ def calculations():
             # cv2.imshow("thresh2",th2)
             # cv2.waitKey(0)
             # cv2.imwrite("car_contour_gray.png",th2)
-            img_bgr = cv2.cvtColor(th2, cv2.COLOR_GRAY2BGR)
-            cv2.drawContours(img_bgr,[box],0,(255,0,0),thickness =3,)
+            # img_bgr = cv2.cvtColor(th2, cv2.COLOR_GRAY2BGR)
+            # cv2.drawContours(img_bgr,[box],0,(255,0,0),thickness =3,)
             subtracted = cv2.subtract(mask_rect, th2)
             # cv2.imshow("mask_rect",mask_rect)
             # cv2.waitKey(0)
@@ -546,11 +550,13 @@ def calculations():
                 # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
                 # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
                 # cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
+            if cx>32 and cx<608 and cy>24 and cy<456:
+                pubMsg.isCarNinety.data = True
+
+
             coord = projection(np.array([yfront,cy,yback]), np.array([xfront,cx,xback]), cv_depth, drone_pose)
             # cv2.circle(image,(int(cx),int(cy)),7,(0,0,255),-1)
             # cv2.circle(image, (int(xfront), int(yfront)), 7, (0, 0,255), -1)
-            # cv2.imshow("image",image)
-            # cv2.waitKey(0)
             # cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront), int(yfront)),(0,255,0),thickness = 4)
             # normal = gradients(cy+35,cx+35)
             # normal2 = gradients(cy + 70,cx+70)
@@ -647,6 +653,18 @@ def calculations():
                 pubMsg.car_state.pose.pose.position.y = coord[1, 2]
                 pubMsg.car_state.pose.pose.position.z = coord[2, 2]
 
+                pubMsg.car_centre.x = coord[0,1]
+                pubMsg.car_centre.y = coord[1,1]
+                pubMsg.car_centre.z = coord[2,1]
+
+                pubMsg.car_back.x = coord[0,2]
+                pubMsg.car_back.y = coord[1,2]
+                pubMsg.car_back.z = coord[2,2]
+
+                pubMsg.car_front.x = coord[0,0]
+                pubMsg.car_front.y = coord[1,0]
+                pubMsg.car_front.z = coord[2,0]
+
                 # final_pose = geometry_msgs.msg.PoseStamped()
                 # final_pose.pose.position.x = coord[0,2]
                 # final_pose.pose.position.y = coord[1,2]
@@ -702,9 +720,9 @@ def calculations():
             # cv2.imshow("mask",mask)
             # cv2.waitKey(0)
 
-        # else:
-        #     isMask = False
-        #     pub3.publish(isMask)
+        else:
+            # isMask = False
+            pub1.publish(pubMsg)
         # reprojection
         # reproj=new_vec
         # reproj = np.dot(P, real_im_center)
