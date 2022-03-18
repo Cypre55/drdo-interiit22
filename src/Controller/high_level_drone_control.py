@@ -21,8 +21,8 @@ pos_drones =  np.array([0,0,0])
 Kpx = 0.4
 Kpy = 0.4
 Kpz = 1
-Kdx = 0.015
-Kdy = 0.015
+Kdx = 0.1
+Kdy = 0.1
 Kdz = 1
 
 KP = np.array([[Kpx,0,0],
@@ -73,8 +73,8 @@ def main():
 		check = (vel[0]**2+vel[1]**2)**0.5
 		if check > 6:
 			print("limiting velocity")
-			msg.linear.x = vel[0]*5/check 
-			msg.linear.y = vel[1]*5/check
+			msg.linear.x = vel[0]*6/check 
+			msg.linear.y = vel[1]*6/check
 		instance.publish(msg)
 		print("x",msg.linear.x,"y", msg.linear.y,"z",msg.linear.z)
 	rate.sleep()

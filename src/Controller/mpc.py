@@ -46,7 +46,7 @@ Q_y = 230000#3000
 Q_V = 10#1000000                                                                          
 Q_theta = 1000#200 
 
-R1 = 1e+11	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
+R1 = 1e+14	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
 R2 = 1e+7#10000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
@@ -92,6 +92,11 @@ pose_for_quiver_x = []
 pose_for_quiver_y = []
 pose_for_quiver_u = []
 pose_for_quiver_v = []
+
+kalman_pose_for_quiver_x = []
+kalman_pose_for_quiver_y = []
+kalman_pose_for_quiver_u = []
+kalman_pose_for_quiver_v = []
 
 def equidist_path(path,total_path_points):
 
@@ -174,47 +179,79 @@ def pathfunc():
 		
 
 	# for i in range(0,total_path_points):                                                                                                                
-		# path[i][0] = Path.poses[i].pose.position.x
-		# path[i][1] = Path.poses[i].pose.position.y  
-		# path[i][0] = path_x[i] 
+		# path[i][0] = Path.poses[i].kalman_.position.x
+		# path[i][1] = Path.poses[i].kalman_.position.y  
+		# path[i][0] = path_x[i] kalman_
 		# path[i][1] = path_y[i]	   	
 
 Xnp = np.zeros((6, 1), dtype = np.float32)
-# xpred = []
-# ypred = []
-# xtpred = []
-# ytpred = []
+
 
 dt = 0.1 #
-F = np.array([[1, 0, dt,  0, 0.5*dt*dt,         0],
+F = np.array(  [[1, 0, dt,  0, 0.5*dt*dt,         0],
 				[0, 1,  0, dt,         0, 0.5*dt*dt],
 				[0, 0,  1,  0,        dt,         0],
 				[0, 0,  0,  1,         0,        dt],
 				[0, 0,  0,  0,         1,         0],
-				[0, 0,  0,  0,         0,         1]], dtype=np.float32) 
-u = np.zeros((6, 1), dtype=np.float32) #
+				[0, 0,  0,  0,         0,         1]], dtype=np.float32) #transition matrix
+u = np.zeros((6, 1), dtype=np.float32) #transition offset
+B = np.array([[1, 0, 0, 0, 0, 0],
+			  [0, 1, 0, 0, 0, 0],
+			  [0, 0, 1, 0, 0, 0],
+			  [0, 0, 0, 1, 0, 0],
+			  [0, 0, 0, 0, 1, 0],
+			  [0, 0, 0, 0, 0, 1]], dtype=np.float32)
+
 H = np.array([[1, 0, 0, 0, 0, 0],
 				[0, 1, 0, 0, 0, 0],
 				[0, 0, 1, 0, 0, 0],
 				[0, 0, 0, 1, 0, 0]], dtype=np.float32)
-P = np.array([[1, 0, 0, 0, 0, 0], 
+P = np.array(  [[1, 0, 0, 0, 0, 0],
 				[0, 1, 0, 0, 0, 0],
 				[0, 0, 1, 0, 0, 0],
 				[0, 0, 0, 1, 0, 0],
 				[0, 0, 0, 0, 1, 0],
+				[0, 0, 0, 0, 0, 1]], dtype=np.float32)
+R = np.array(  [[100, 0, 0, 0],
+				[0, 100, 0, 0],
+				[0, 0, 100, 0],
+				[0, 0, 0, 100]], dtype=np.float32) # measurement uncertainty
+
+Q = np.array(  [[0.5, 0, 0, 0, 0, 0],
+				[0, 0.5, 0, 0, 0, 0],
+				[0, 0, 0.1, 0, 0, 0],
+				[0, 0, 0, 0.1, 0, 0],
+				[0, 0, 0, 0, 1, 0],
 				[0, 0, 0, 0, 0, 1]], dtype=np.float32) # estimate uncertainty
-R = np.array([[1, 0, 0, 0],
-				[0, 1, 0, 0],
-				[0, 0, 1, 0],
-				[0, 0, 0, 1]], dtype=np.float32) # measurement uncertainty
 I = np.identity(6, dtype=np.float32)
 
-P *= 1
-R *= 1
+# Mark 1
+# Q *= 0.1
+# R *= 100
+
+# Mark 2
+# R = np.array(  [[100, 0, 0, 0],
+# 				[0, 100, 0, 0],
+# 				[0, 0, 100, 0],
+# 				[0, 0, 0, 100]], dtype=np.float32) # measurement uncertainty
+
+# Q = np.array(  [[0.5, 0, 0, 0, 0, 0],
+# 				[0, 0.5, 0, 0, 0, 0],
+# 				[0, 0, 0.1, 0, 0, 0],
+# 				[0, 0, 0, 0.1, 0, 0],
+# 				[0, 0, 0, 0, 1, 0],
+# 				[0, 0, 0, 0, 0, 1]], dtype=np.float32) # estimate uncertainty
+# Q *= 1
+# R *= 10
+
+Q *= 1
+R *= 10
 
 def kalman(z):
-	global Xnp, F, u, H, P, R, I
+	global Xnp, F, u, H, P, R, I, B, Q
 
+	z = np.array(z)
+	z = np.expand_dims(z, axis=1)
 	y = z - np.matmul(H,Xnp)
 	S = np.matmul(H,np.matmul(P,H.T)) + R
 	Sinv = np.linalg.inv(S)
@@ -222,39 +259,33 @@ def kalman(z):
 	Xnp = Xnp + np.matmul(k,y)
 	P = np.matmul((I - np.matmul(k,H)),P)
 
-	Xnp = np.matmul(F,Xnp) + u
-	P = np.matmul(F,np.matmul(P,F.T))
+	Xnp = np.matmul(F,Xnp) + np.matmul(B, u)
+	P = np.matmul(F,np.matmul(P,F.T)) + Q
 
-
+first = 0
 
 def odomfunc(odom):
-	
-	global x,y,V,theta
-	global pose_for_quiver
-	
-	# x = odom.pose.pose.position.x 
-	# y = odom.pose.pose.position.y 
-	# V = math.sqrt(odom.twist.twist.linear.x**2 + odom.twist.twist.linear.y**2)
 
-	# quaternions =  odom.pose.pose.orientation  
-	
-
-
-
-	
-	# index = odom.name.index('prius')   
-	
-	# x = odom.pose[index].position.x 
-	# y = odom.pose[index].position.y 
-	# V = math.sqrt(odom.twist[index].linear.x**2 + odom.twist[index].linear.y**2)
-
-	# quaternions =  odom.pose[index].orientation  
-
-
-
+	global x,y,V,theta, Xnp
+	global pose_for_quiver_x
+	global pose_for_quiver_y
+	global pose_for_quiver_u
+	global pose_for_quiver_v
+	global kalman_pose_for_quiver_x
+	global kalman_pose_for_quiver_y
+	global kalman_pose_for_quiver_u
+	global kalman_pose_for_quiver_v
 
 	x = odom.car_state.pose.pose.position.x
 	y = odom.car_state.pose.pose.position.y
+
+	global first
+
+	if(first == 0):
+		first = 1
+		Xnp[0] = x
+		Xnp[1] = y
+
 
 	quaternions =  odom.car_state.pose.pose.orientation
 
@@ -268,6 +299,14 @@ def odomfunc(odom):
 	pose_for_quiver_y.append(curr_pose[1])
 	pose_for_quiver_u.append(curr_pose[2])
 	pose_for_quiver_v.append(curr_pose[3])
+	kalman_pose_for_quiver_x.append(Xnp[0])
+	kalman_pose_for_quiver_y.append(Xnp[1])
+	kalman_pose_for_quiver_u.append(Xnp[2])
+	kalman_pose_for_quiver_v.append(Xnp[3])
+
+	x = np.squeeze(kalman_pose_for_quiver_x[-1])
+	y = np.squeeze(kalman_pose_for_quiver_y[-1])
+	V = math.sqrt(kalman_pose_for_quiver_u[-1]**2 + kalman_pose_for_quiver_v[-1]**2)
 
 	quaternions_list = [quaternions.x,quaternions.y,quaternions.z,quaternions.w]
 	roll,pitch,yaw = euler_from_quaternion(quaternions_list)
@@ -468,8 +507,8 @@ def my_mainfunc():
 			throttle = acc / throttle_constant
 			steer_input = steer/steer_constant
 
-			plt.clf()
-			plt.plot(path[:800,0],path[:800,1])
+			# plt.clf()
+			# plt.plot(path[:800,0],path[:800,1])
 
 			x_hist.append(x)
 			y_hist.append(y)
@@ -477,13 +516,23 @@ def my_mainfunc():
 			# print("path shape,",path.shape)
 
 			global pose_for_quiver_x, pose_for_quiver_y, pose_for_quiver_u, pose_for_quiver_v, Xnp
+			global kalman_pose_for_quiver_x, kalman_pose_for_quiver_y, kalman_pose_for_quiver_u, kalman_pose_for_quiver_v
 			
-			# print(pose_for_quiver)
-			# print((X[0]))
-			plt.quiver(Xnp[0],Xnp[1],Xnp[2],Xnp[3])
-
-			# plt.scatter(x_hist,y_hist,color='red',marker='.')
-			plt.pause(0.00001)
+			plt.clf()
+			plt.plot(pose_for_quiver_x, pose_for_quiver_y, color='r')
+			print('orig: ', len(pose_for_quiver_x), len(pose_for_quiver_y))
+			try:
+				plt.plot(kalman_pose_for_quiver_x, kalman_pose_for_quiver_y, color='b')
+			except Exception as e:
+				print('kalman: ', len(kalman_pose_for_quiver_x), len(kalman_pose_for_quiver_y))
+				if(len(kalman_pose_for_quiver_x) > len(kalman_pose_for_quiver_y)):
+					kalman_pose_for_quiver_x = kalman_pose_for_quiver_x[:-1]
+				else:
+					kalman_pose_for_quiver_y = kalman_pose_for_quiver_y[:-1]
+			# plt.xlim(0, 50)
+			# plt.ylim(-50, 0)
+			# plt.quiver(kalman_pose_for_quiver_x,kalman_pose_for_quiver_y,kalman_pose_for_quiver_u,kalman_pose_for_quiver_v)
+			plt.pause(0.0001)
 			
 			if throttle>0.01:
 				throttle = 0.01   
@@ -499,8 +548,8 @@ def my_mainfunc():
 				msg.steer = steer_input
 				# msg.shift_gears =2
 			
-			if V >3.5:
-				msg.brake = 0.3
+			if V >1.5:
+				msg.brake = 0.35
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
 			print("Throttle", msg.throttle )
