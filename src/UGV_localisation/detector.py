@@ -308,7 +308,7 @@ def calculations():
             dist2 = (xbot - y[1]) ** 2 + (ybot - y[0]) ** 2
             if dist1 > dist2:
 
-                # cv2.line(image, (int(cx), int(cy)), (int(xtop), int(ytop)), (0, 0, 255), 3)
+#                 cv2.line(image, (int(cx), int(cy)), (int(xtop), int(ytop)), (0, 0, 255), 3)
                 angle = np.arctan2(ybot - cy, xbot - cx)
                 # print(ybot - cy)
                 # print(xbot - cx)
@@ -320,13 +320,13 @@ def calculations():
                 # coord = projection(np.array([ybot, cy, ytop]), np.array([xbot, cx, xtop]), cv_depth, drone_pose)
                 # coord = projection(np.array([xtop]), np.array([ytop]), cv_depth, drone_pose)
 <<<<<<< HEAD
-                cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-                cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
-                cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
+#                 cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+#                 cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
+#                 cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
 =======
-                # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-                # cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
-                # cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
+                # cv2.circle(image,(int(cx),int(cy)),7,(0,0,255),-1)
+           
+                # cv2.circle(image,(int(xtop),int(ytop)),7,(0,0,255),-1)
 >>>>>>> 410fa87a32dd5576e8e61954c9ac9455749fb883
             else:
                 # cv2.line(image, (int(xbot), int(ybot)), (int(cx), int(cy)), (0, 0, 255), 3)
@@ -343,9 +343,9 @@ def calculations():
                 coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
                 
                 # coord = projection(np.array([xbot]), np.array([ybot]), cv_depth, drone_pose)
-                cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-                cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
-                cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
+#                 cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+#                 cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
+#                 cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
             # cv2.imwrite("car_contour_front.png",image)
 =======
                 # coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
@@ -354,8 +354,10 @@ def calculations():
                 # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
                 # cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
             coord = projection(np.array([yfront, cy, yback]), np.array([xfront, cx, xback]), cv_depth, drone_pose)
-
-            # cv2.circle(image,(int(xfront),int(yfront)),7,(255,0,0),-1)
+            # DRAWING ARROWED LINE FOR DOCUMENTATION
+            # cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront),int(yfront)),(0,255,0),4)
+            cv2.circle(image,(int(cx),int(cy)),7,(0,0,255),-1)
+            cv2.circle(image,(int(xfront),int(yfront)),7,(0,0,255),-1)
             # cv2.imshow("image",image)
             # cv2.waitKey(0)
 >>>>>>> 410fa87a32dd5576e8e61954c9ac9455749fb883
