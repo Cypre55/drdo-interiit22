@@ -17,6 +17,10 @@ kalman_pose_for_quiver_u = []
 kalman_pose_for_quiver_v = []
 pubMsg = customMessage()
 
+v_measured = []
+v_kalman = []
+iter = []
+
 pub = rospy.Publisher('car_state/kalman_complete', customMessage, queue_size=10)
 
 Xnp = np.zeros((6, 1), dtype = np.float32)
@@ -46,10 +50,10 @@ P = np.array(  [[1, 0, 0, 0, 0, 0],
 				[0, 0, 0, 1, 0, 0],
 				[0, 0, 0, 0, 1, 0],
 				[0, 0, 0, 0, 0, 1]], dtype=np.float32)
-R = np.array(  [[10, 0, 0, 0],
-				[0, 10, 0, 0],
-				[0, 0, 10, 0],
-				[0, 0, 0, 10]], dtype=np.float32) # measurement uncertainty
+R = np.array(  [[1, 0, 0, 0],
+				[0, 1, 0, 0],
+				[0, 0, 1, 0],
+				[0, 0, 0, 1]], dtype=np.float32) # measurement uncertainty
 
 Q = np.array(  [[0.5, 0, 0, 0, 0, 0],
 				[0, 0.5, 0, 0, 0, 0],
@@ -98,7 +102,7 @@ def kalman(z):
 
 def odomfunc(odom):
 
-	global x,y,V,theta, pubMsg
+	global x,y,V,theta, pubMsg, v_measured, v_kalman, iter
 
 	x = odom.car_state.pose.pose.position.x
 	y = odom.car_state.pose.pose.position.y
@@ -109,6 +113,8 @@ def odomfunc(odom):
 
 	curr_pose = [x, y, odom.car_state.twist.twist.linear.x, odom.car_state.twist.twist.linear.y]
 	kalman(curr_pose)
+
+	v_measured.append(V)
 
 	pubMsg = odom
 	pubMsg.car_state.header = odom.header
@@ -124,6 +130,15 @@ def odomfunc(odom):
 		x = np.squeeze(kalman_pose_for_quiver_x[-1])
 		y = np.squeeze(kalman_pose_for_quiver_y[-1])
 		V = math.sqrt(kalman_pose_for_quiver_u[-1]**2 + kalman_pose_for_quiver_v[-1]**2)
+	
+	v_kalman.append(V)
+
+	iter.append(len(iter)+1)
+
+	plt.clf()
+	plt.plot(iter, v_measured, color='r')
+	plt.plot(iter, v_kalman, color='b')
+	plt.pause(0.001)
 
 
 def my_mainfunc():
@@ -133,7 +148,8 @@ def my_mainfunc():
 	rate = rospy.Rate(10)
 	while not rospy.is_shutdown():
 		pub.publish(pubMsg)
-		rate.sleep()                                                                                 #rate.sleep() to run odomfunc once
+		rate.sleep()
+	plt.show()                                                                                 #rate.sleep() to run odomfunc once
 
 
 

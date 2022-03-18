@@ -7,6 +7,7 @@ import casadi as ca
 import numpy as np    
 import math   
 from scipy.spatial import KDTree
+from geometry_msgs.msg import Point,PoseStamped, Vector3
 from tf.transformations import euler_from_quaternion 
 
 from drdo_interiit22.msg import customMessage
@@ -156,7 +157,7 @@ def pathfunc():
 			# total_path_points = len(Path.poses)
 			# total_path_points = len(path_x)
 			# path = np.load("/home/satwik/catkin_ws/src/drdo-interiit22/graph_nodes.npy")
-			path = np.load("/home/rohit_dhamija/InterIIT22_ws/src/drdo_interiit22/src/Controller/ugv_waypoints.npy")
+			path = np.load("ugv_waypoints.npy")
 			total_path_points = (path[:,0]).size
 
 			path = equidist_path(path,total_path_points)
@@ -212,7 +213,12 @@ def odomfunc(odom):
 	roll,pitch,yaw = euler_from_quaternion(quaternions_list)
 	theta = yaw
 
+delta_z = None
+slope_throttle = 1
 
+def lane_norm_cb(data):
+	global delta_z
+	delta_z = data.z
 
 
 def my_mainfunc():
@@ -221,10 +227,11 @@ def my_mainfunc():
 	# rospy.Subscriber('/mavros/local_position/odom' , Odometry, odomfunc)  
 	# rospy.Subscriber('/gazebo/model_states' , ModelStates, odomfunc)    
 	# rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)    
-	rospy.Subscriber('/car_state/kalman_complete' , customMessage, odomfunc)    
+	rospy.Subscriber('/car_state/kalman_complete' , customMessage, odomfunc)
+	rospy.Subscriber('/lane/norm',Vector3,lane_norm_cb)    
 
 
-	path = np.load("/home/rohit_dhamija/InterIIT22_ws/src/drdo_interiit22/src/Controller/ugv_waypoints.npy")
+	path = np.load("ugv_waypoints.npy")
 	total_path_points = (path[:,0]).size
 
 	path = equidist_path(path,total_path_points)
@@ -415,20 +422,16 @@ def my_mainfunc():
 				msg.brake = -throttle * 80 												#brake
 				msg.steer = steer_input
 				msg.shift_gears =2
-				
+			
+			# if delta_z 
+			
+			if(V > 1.5):
+				msg.brake = 0.35
+
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
 			print(round(V,2)," ",KDTree(path).query(np.array([x,y]))[0],"   ", throttle )
 			cross_track_error.append(KDTree(path).query(np.array([x,y]))[0])
-			
-			
-			
-			
-			
-		
-
-			
-
 
 			P[0:n_states] = [x,y,V,theta] 
 
