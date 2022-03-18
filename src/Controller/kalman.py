@@ -115,29 +115,43 @@ F = np.array(  [[1, 0, dt,  0, 0.5*dt*dt,         0],
 				[0, 0,  1,  0,        dt,         0],
 				[0, 0,  0,  1,         0,        dt],
 				[0, 0,  0,  0,         1,         0],
-				[0, 0,  0,  0,         0,         1]], dtype=np.float32)
-u = np.zeros((6, 1), dtype=np.float32) #
+				[0, 0,  0,  0,         0,         1]], dtype=np.float32) #transition matrix
+u = np.zeros((6, 1), dtype=np.float32) #transition offset
+B = np.array([[1, 0, 0, 0, 0, 0],
+			  [0, 1, 0, 0, 0, 0],
+			  [0, 0, 1, 0, 0, 0],
+			  [0, 0, 0, 1, 0, 0],
+			  [0, 0, 0, 0, 1, 0],
+			  [0, 0, 0, 0, 0, 1]], dtype=np.float32)
+
 H = np.array([[1, 0, 0, 0, 0, 0],
 				[0, 1, 0, 0, 0, 0],
 				[0, 0, 1, 0, 0, 0],
 				[0, 0, 0, 1, 0, 0]], dtype=np.float32)
-P = np.array([[1, 0, 0, 0, 0, 0],
+P = np.array(  [[1, 0, 0, 0, 0, 0],
 				[0, 1, 0, 0, 0, 0],
 				[0, 0, 1, 0, 0, 0],
 				[0, 0, 0, 1, 0, 0],
 				[0, 0, 0, 0, 1, 0],
-				[0, 0, 0, 0, 0, 1]], dtype=np.float32) # estimate uncertainty
-R = np.array(  [[1, 0, 0, 0],
-				[0, 1, 0, 0],
+				[0, 0, 0, 0, 0, 1]], dtype=np.float32)
+R = np.array(  [[0.1, 0, 0, 0],
+				[0, 0.1, 0, 0],
 				[0, 0, 1, 0],
 				[0, 0, 0, 1]], dtype=np.float32) # measurement uncertainty
+
+Q = np.array(  [[2, 0, 0, 0, 0, 0],
+				[0, 2, 0, 0, 0, 0],
+				[0, 0, 2, 0, 0, 0],
+				[0, 0, 0, 2, 0, 0],
+				[0, 0, 0, 0, 1, 0],
+				[0, 0, 0, 0, 0, 1]], dtype=np.float32) # estimate uncertainty
 I = np.identity(6, dtype=np.float32)
 
-P *= 1
+Q *= 1
 R *= 1
 
 def kalman(z):
-	global Xnp, F, u, H, P, R, I
+	global Xnp, F, u, H, P, R, I, B, Q
 
 	y = z - np.matmul(H,Xnp)
 	S = np.matmul(H,np.matmul(P,H.T)) + R
@@ -146,8 +160,8 @@ def kalman(z):
 	Xnp = Xnp + np.matmul(k,y)
 	P = np.matmul((I - np.matmul(k,H)),P)
 
-	Xnp = np.matmul(F,Xnp) + u
-	P = np.matmul(F,np.matmul(P,F.T))
+	Xnp = np.matmul(F,Xnp) + np.matmul(B, u)
+	P = np.matmul(F,np.matmul(P,F.T)) + Q
 
 def odomfunc(odom):
 
