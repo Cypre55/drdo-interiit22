@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from re import X
 import rospy
 from nav_msgs.msg import Odometry
 from nav_msgs.msg import Path
@@ -151,7 +152,7 @@ I = np.identity(6, dtype=np.float32)
 # Q *= 0.1
 # R *= 100
 
-# Mark 1
+# Mark 2
 # R = np.array(  [[100, 0, 0, 0],
 # 				[0, 100, 0, 0],
 # 				[0, 0, 100, 0],
@@ -167,7 +168,7 @@ I = np.identity(6, dtype=np.float32)
 # R *= 10
 
 Q *= 1
-R *= 1
+R *= 10
 
 def kalman(z):
 	global Xnp, F, u, H, P, R, I, B, Q
@@ -184,43 +185,52 @@ def kalman(z):
 	Xnp = np.matmul(F,Xnp) + np.matmul(B, u)
 	P = np.matmul(F,np.matmul(P,F.T)) + Q
 
+first = 0
 
 def odomfunc(odom):
 
-    global x,y,V,theta, Xnp
-    global pose_for_quiver_x
-    global pose_for_quiver_y
-    global pose_for_quiver_u
-    global pose_for_quiver_v
-    global kalman_pose_for_quiver_x
-    global kalman_pose_for_quiver_y
-    global kalman_pose_for_quiver_u
-    global kalman_pose_for_quiver_v
+	global x,y,V,theta, Xnp
+	global pose_for_quiver_x
+	global pose_for_quiver_y
+	global pose_for_quiver_u
+	global pose_for_quiver_v
+	global kalman_pose_for_quiver_x
+	global kalman_pose_for_quiver_y
+	global kalman_pose_for_quiver_u
+	global kalman_pose_for_quiver_v
 
-    x = odom.car_state.pose.pose.position.x
-    y = odom.car_state.pose.pose.position.y
+	x = odom.car_state.pose.pose.position.x
+	y = odom.car_state.pose.pose.position.y
 
-    quaternions =  odom.car_state.pose.pose.orientation
+	global first
 
-    V = math.sqrt(odom.car_state.twist.twist.linear.x**2 + odom.car_state.twist.twist.linear.y**2)
+	if(first == 0):
+		first = 1
+		Xnp[0] = x
+		Xnp[1] = y
 
-    curr_pose = [x, y, odom.car_state.twist.twist.linear.x, odom.car_state.twist.twist.linear.y]
+
+	quaternions =  odom.car_state.pose.pose.orientation
+
+	V = math.sqrt(odom.car_state.twist.twist.linear.x**2 + odom.car_state.twist.twist.linear.y**2)
+
+	curr_pose = [x, y, odom.car_state.twist.twist.linear.x, odom.car_state.twist.twist.linear.y]
 
 
-    kalman(curr_pose)
+	kalman(curr_pose)
 
-    pose_for_quiver_x.append(curr_pose[0])
-    pose_for_quiver_y.append(curr_pose[1])
-    pose_for_quiver_u.append(curr_pose[2])
-    pose_for_quiver_v.append(curr_pose[3])
-    kalman_pose_for_quiver_x.append(Xnp[0])
-    kalman_pose_for_quiver_y.append(Xnp[1])
-    kalman_pose_for_quiver_u.append(Xnp[2])
-    kalman_pose_for_quiver_v.append(Xnp[3])
+	pose_for_quiver_x.append(curr_pose[0])
+	pose_for_quiver_y.append(curr_pose[1])
+	pose_for_quiver_u.append(curr_pose[2])
+	pose_for_quiver_v.append(curr_pose[3])
+	kalman_pose_for_quiver_x.append(Xnp[0])
+	kalman_pose_for_quiver_y.append(Xnp[1])
+	kalman_pose_for_quiver_u.append(Xnp[2])
+	kalman_pose_for_quiver_v.append(Xnp[3])
 
-    quaternions_list = [quaternions.x,quaternions.y,quaternions.z,quaternions.w]
-    roll,pitch,yaw = euler_from_quaternion(quaternions_list)
-    theta = yaw
+	quaternions_list = [quaternions.x,quaternions.y,quaternions.z,quaternions.w]
+	roll,pitch,yaw = euler_from_quaternion(quaternions_list)
+	theta = yaw
 
 def my_mainfunc():
 	rospy.init_node('kalman', anonymous=True)
