@@ -3,7 +3,7 @@ from cv2 import transform
 import rospy
 from sensor_msgs.msg import Image
 from std_msgs.msg import Bool,Float64MultiArray
-from geometry_msgs.msg import Point,PoseStamped
+from geometry_msgs.msg import Point,PoseStamped, Vector3
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from cv_bridge import CvBridge, CvBridgeError
@@ -24,8 +24,10 @@ cx=-1
 cy=-1
 dep=np.zeros((480,640))
 mask=np.zeros((480,640))
+center = None
 lane_mask=np.zeros((480,640))
 drone_pose=PoseStamped()
+road_norm=None
 def fit_spline(x,y):
     resolution = 0.1
     path_x=[]
@@ -73,7 +75,7 @@ def fit_spline(x,y):
     # y_regular = np.expand_dims(y_regular, axis=-1)
     # path_final = np.concatenate([x_regular, y_regular], axis = 1)
     # return(x_regular,y_regular)
-    
+
 
 def find_grad_sobel(img):
     X=cv.Sobel(img,cv.CV_64F,1,0,5)
@@ -96,7 +98,7 @@ def listit(t):
 def tupleit(t):
         return tuple(map(tupleit, t)) if isinstance(t, (list, tuple)) else t
 
-def bounding_ellipse(mask):
+def bounding_ellipse(mask, center = None):
     mask = np.uint8(mask)
     contours = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
@@ -120,13 +122,14 @@ def bounding_ellipse(mask):
     return surr
 
 def find_path_with_car():
-    global mask,dep
-    surr = bounding_ellipse(mask)
+    global mask,dep,center, pre_est
+    surr = bounding_ellipse(mask, center)
     norms=find_grad_sobel(dep)
     norms=normalized(norms,axis=2)
-
+    norms=project_normals(norms)
     norm_mean = np.mean(norms[surr==255], axis=0)
     norm_mean /= np.linalg.norm(norm_mean)
+    pre_est = norm_mean
     dp = norms*norm_mean
     dp = np.sum(dp, axis=2)
     lane = dp > 0.9
@@ -302,6 +305,14 @@ def publish_traj(pub,cx,cy,name):
         traj.points.append(pt)
     pub.publish(traj)
 
+def publish_norm(pub):
+    vect = Vector3()
+    vect.x = pre_est[0]
+    vect.y = pre_est[1]
+    vect.z = pre_est[2]
+    pub.publish(vect)
+
+
 def segmenter():
     rospy.init_node('segmenter')
     rospy.Subscriber('/car_state/is_car',Bool,carback)
@@ -312,6 +323,7 @@ def segmenter():
     right_pub=rospy.Publisher('/lane/right',JointTrajectory,queue_size=1)
     mid_pub=rospy.Publisher('/lane/mid',JointTrajectory,queue_size=1)
     mask_pub=rospy.Publisher('/lane/mask',Image,queue_size=1)
+    norm_pub=rospy.Publisher('/lane/norm',Vector3,queue_size=1)
     bridge=CvBridge()
     while not rospy.is_shutdown():
         start_time=time.time()
@@ -333,6 +345,7 @@ def segmenter():
             publish_traj(right_pub,path[2],path[3],"RIGHT")
             publish_traj(mid_pub,path[4],path[5],"MID")
             mask_pub.publish(bridge.cv2_to_imgmsg(lane_mask))
+            publish_norm(norm_pub)
             # pre_est1=np.array([1., 0., 0.]).reshape((1,1,3))
             # test=np.array([[pre_est, pre_est1, pre_est],
             #                 [pre_est1, pre_est, pre_est1]])
