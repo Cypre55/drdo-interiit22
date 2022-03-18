@@ -25,7 +25,7 @@ def odomfunc(odom):
     z = odom.car_state.pose.pose.position.z
     # V = math.sqrt(odom.twist.twist.linear.x**2 + odom.twist.twist.linear.y**2)
 
-    # quaternions =  odom.pose.pose.orientation
+    quaternions =  odom.car_state.pose.pose.orientation
 
     #index = odom.name.index('prius')
 
@@ -35,10 +35,10 @@ def odomfunc(odom):
 
     # quaternions =  odom.pose[index].orientation
 
-    # quaternions_list = [quaternions.x,quaternions.y,quaternions.z,quaternions.w]
-    # roll,pitch,yaw = euler_from_quaternion(quaternions_list)
-    # theta = yaw
-    theta = odom.car_state.pose.pose.orientation.x
+    quaternions_list = [quaternions.x,quaternions.y,quaternions.z,quaternions.w]
+    roll,pitch,yaw = euler_from_quaternion(quaternions_list)
+    theta = yaw
+    
 
 
 def real_data():

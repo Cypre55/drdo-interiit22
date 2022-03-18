@@ -37,5 +37,8 @@
       <arg name="node_start_delay" default="5.0" />
       <node name="init_drone" pkg="drdo_interiit22" type="init_drone" launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' " />
 
+      <!-- Launching Rviz with 4 images-->
+      <node name="rviz" pkg="rviz" type="rviz" args="-d $(find drdo_interiit22)/rviz/myConfg.rviz"/>
+
 
   </launch>
