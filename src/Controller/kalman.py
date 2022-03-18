@@ -99,7 +99,7 @@ def pathfunc():
 		flag = 1
 		global total_path_points,path
 		if total_path_points == 0:
-			path = np.load("/home/r0hit/catkin_ws/src/drdo-interiit22/src/Controller/ugv_waypoints.npy")
+			path = np.load("ugv_waypoints.npy")
 			total_path_points = (path[:,0]).size
 
 			path = equidist_path(path,total_path_points)
@@ -153,6 +153,8 @@ R *= 1
 def kalman(z):
 	global Xnp, F, u, H, P, R, I, B, Q
 
+	z = np.array(z)
+	z = np.expand_dims(z, axis=1)
 	y = z - np.matmul(H,Xnp)
 	S = np.matmul(H,np.matmul(P,H.T)) + R
 	Sinv = np.linalg.inv(S)
@@ -162,6 +164,7 @@ def kalman(z):
 
 	Xnp = np.matmul(F,Xnp) + np.matmul(B, u)
 	P = np.matmul(F,np.matmul(P,F.T)) + Q
+
 
 def odomfunc(odom):
 
@@ -201,28 +204,35 @@ def odomfunc(odom):
     theta = yaw
 
 def my_mainfunc():
-    rospy.init_node('kalman', anonymous=True)
-    # rospy.Subscriber('/base_pose_ground_truth' , Odometry, odomfunc)
-    # rospy.Subscriber('/mavros/local_position/odom' , Odometry, odomfunc)
-    # rospy.Subscriber('/gazebo/model_states' , ModelStates, odomfunc)
-    rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)
+	rospy.init_node('kalman', anonymous=True)
+	# rospy.Subscriber('/base_pose_ground_truth' , Odometry, odomfunc)
+	# rospy.Subscriber('/mavros/local_position/odom' , Odometry, odomfunc)
+	# rospy.Subscriber('/gazebo/model_states' , ModelStates, odomfunc)
+	rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)
 
-    path = np.load("/home/r0hit/catkin_ws/src/drdo-interiit22/src/Controller/ugv_waypoints.npy")
-    total_path_points = (path[:,0]).size
+	path = np.load("ugv_waypoints.npy")
+	total_path_points = (path[:,0]).size
 
-    path = equidist_path(path,total_path_points)
-
-    rate = rospy.Rate(10)
-
-    try:
-        while not rospy.is_shutdown():
-            pass
-            # rate.sleep()
-    except KeyboardInterrupt:
-        plt.plot(pose_for_quiver_x, pose_for_quiver_y)
-        plt.plot(kalman_pose_for_quiver_x, kalman_pose_for_quiver_y)
-        plt.quiver(kalman_pose_for_quiver_x,kalman_pose_for_quiver_y,kalman_pose_for_quiver_u,kalman_pose_for_quiver_v)
-
+	path = equidist_path(path,total_path_points)
+	global kalman_pose_for_quiver_y, kalman_pose_for_quiver_x, kalman_pose_for_quiver_u, kalman_pose_for_quiver_v
+	rate = rospy.Rate(10)
+	while not rospy.is_shutdown():
+		plt.clf()
+		plt.plot(pose_for_quiver_x, pose_for_quiver_y, color='r')
+		print('orig: ', len(pose_for_quiver_x), len(pose_for_quiver_y))
+		try:
+			plt.plot(kalman_pose_for_quiver_x, kalman_pose_for_quiver_y, color='b')
+		except Exception as e:
+			print('kalman: ', len(kalman_pose_for_quiver_x), len(kalman_pose_for_quiver_y))
+			if(len(kalman_pose_for_quiver_x) > len(kalman_pose_for_quiver_y)):
+				kalman_pose_for_quiver_x = kalman_pose_for_quiver_x[:-1]
+			else:
+				kalman_pose_for_quiver_y = kalman_pose_for_quiver_y[:-1]
+		# plt.xlim(0, 50)
+		# plt.ylim(-50, 0)
+		# plt.quiver(kalman_pose_for_quiver_x,kalman_pose_for_quiver_y,kalman_pose_for_quiver_u,kalman_pose_for_quiver_v)
+		plt.pause(0.0001)
+	plt.show()
 
 
 
