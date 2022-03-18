@@ -134,18 +134,37 @@ P = np.array(  [[1, 0, 0, 0, 0, 0],
 				[0, 0, 0, 1, 0, 0],
 				[0, 0, 0, 0, 1, 0],
 				[0, 0, 0, 0, 0, 1]], dtype=np.float32)
-R = np.array(  [[0.1, 0, 0, 0],
-				[0, 0.1, 0, 0],
-				[0, 0, 1, 0],
-				[0, 0, 0, 1]], dtype=np.float32) # measurement uncertainty
+R = np.array(  [[100, 0, 0, 0],
+				[0, 100, 0, 0],
+				[0, 0, 100, 0],
+				[0, 0, 0, 100]], dtype=np.float32) # measurement uncertainty
 
-Q = np.array(  [[2, 0, 0, 0, 0, 0],
-				[0, 2, 0, 0, 0, 0],
-				[0, 0, 2, 0, 0, 0],
-				[0, 0, 0, 2, 0, 0],
+Q = np.array(  [[0.5, 0, 0, 0, 0, 0],
+				[0, 0.5, 0, 0, 0, 0],
+				[0, 0, 0.1, 0, 0, 0],
+				[0, 0, 0, 0.1, 0, 0],
 				[0, 0, 0, 0, 1, 0],
 				[0, 0, 0, 0, 0, 1]], dtype=np.float32) # estimate uncertainty
 I = np.identity(6, dtype=np.float32)
+
+# Mark 1
+# Q *= 0.1
+# R *= 100
+
+# Mark 1
+# R = np.array(  [[100, 0, 0, 0],
+# 				[0, 100, 0, 0],
+# 				[0, 0, 100, 0],
+# 				[0, 0, 0, 100]], dtype=np.float32) # measurement uncertainty
+
+# Q = np.array(  [[0.5, 0, 0, 0, 0, 0],
+# 				[0, 0.5, 0, 0, 0, 0],
+# 				[0, 0, 0.1, 0, 0, 0],
+# 				[0, 0, 0, 0.1, 0, 0],
+# 				[0, 0, 0, 0, 1, 0],
+# 				[0, 0, 0, 0, 0, 1]], dtype=np.float32) # estimate uncertainty
+# Q *= 1
+# R *= 10
 
 Q *= 1
 R *= 1
