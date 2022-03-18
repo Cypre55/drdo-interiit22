@@ -46,10 +46,10 @@ P = np.array(  [[1, 0, 0, 0, 0, 0],
 				[0, 0, 0, 1, 0, 0],
 				[0, 0, 0, 0, 1, 0],
 				[0, 0, 0, 0, 0, 1]], dtype=np.float32)
-R = np.array(  [[100, 0, 0, 0],
-				[0, 100, 0, 0],
-				[0, 0, 100, 0],
-				[0, 0, 0, 100]], dtype=np.float32) # measurement uncertainty
+R = np.array(  [[10, 0, 0, 0],
+				[0, 10, 0, 0],
+				[0, 0, 10, 0],
+				[0, 0, 0, 10]], dtype=np.float32) # measurement uncertainty
 
 Q = np.array(  [[0.5, 0, 0, 0, 0, 0],
 				[0, 0.5, 0, 0, 0, 0],
@@ -120,10 +120,10 @@ def odomfunc(odom):
 	# kalman_pose_for_quiver_y.append(Xnp[1])
 	# kalman_pose_for_quiver_u.append(Xnp[2])
 	# kalman_pose_for_quiver_v.append(Xnp[3])
-
-	x = np.squeeze(kalman_pose_for_quiver_x[-1])
-	y = np.squeeze(kalman_pose_for_quiver_y[-1])
-	V = math.sqrt(kalman_pose_for_quiver_u[-1]**2 + kalman_pose_for_quiver_v[-1]**2)
+	if len(kalman_pose_for_quiver_x) > 0:
+		x = np.squeeze(kalman_pose_for_quiver_x[-1])
+		y = np.squeeze(kalman_pose_for_quiver_y[-1])
+		V = math.sqrt(kalman_pose_for_quiver_u[-1]**2 + kalman_pose_for_quiver_v[-1]**2)
 
 
 def my_mainfunc():

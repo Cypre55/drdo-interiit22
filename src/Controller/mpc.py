@@ -199,7 +199,6 @@ def odomfunc(odom):
 
 
 
-
 	x = odom.car_state.pose.pose.position.x
 	y = odom.car_state.pose.pose.position.y
 
@@ -221,9 +220,11 @@ def my_mainfunc():
 	# rospy.Subscriber('/base_pose_ground_truth' , Odometry, odomfunc)   
 	# rospy.Subscriber('/mavros/local_position/odom' , Odometry, odomfunc)  
 	# rospy.Subscriber('/gazebo/model_states' , ModelStates, odomfunc)    
-	rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)    
+	# rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)    
+	rospy.Subscriber('/car_state/kalman_complete' , customMessage, odomfunc)    
 
-	path = np.load("/home/theabyss/interiit_new_ws/src/drdo_interiit22/src/Controller/ugv_waypoints.npy")
+
+	path = np.load("/home/rohit_dhamija/InterIIT22_ws/src/drdo_interiit22/src/Controller/ugv_waypoints.npy")
 	total_path_points = (path[:,0]).size
 
 	path = equidist_path(path,total_path_points)
