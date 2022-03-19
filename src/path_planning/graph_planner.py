@@ -36,9 +36,9 @@ class Node():
 class Graph():
 	def __init__(self):
 		self.arr = []
-		self.last_nodes = [0]
+		self.last_nodes = []
 		self.root = 0
-		self.current = 0
+		self.current = -1
 
 def getYawFromSpline():
 	t = np.arange(DEQUE_SIZE)
@@ -108,7 +108,68 @@ def print_graph():
 		print("X: ", node.UAV.position.x)
 		print("Y: ", node.UAV.position.y)
 
-def build_graph(joint_traj):
+def add_node_to_graph(point):
+	uav = Pose()
+	ugv = Pose()
+
+	uav.position.x = point[0]
+	uav.position.y = point[1]
+	uav.position.z = point[2] + UAV_HEIGHT
+
+	ugv.position.x = point[0]
+	ugv.position.y = point[1]
+	ugv.position.z = point[2]
+
+	temp = Node(uav, ugv, len(graph.arr))
+	graph.arr.append(temp)
+	temp.parent = graph.current
+	if graph.current != -1:
+		graph.arr[graph.current].children.append(temp.index)
+	graph.current = temp.index
+
+	graph.last_nodes.append(graph.current)
+	if (len(graph.last_nodes) > DEQUE_SIZE):
+		while (len(graph.last_nodes) != DEQUE_SIZE):
+			graph.last_nodes.pop(0)
+
+	# if (len(graph.last_nodes) == DEQUE_SIZE):
+	# 	quat = getYawFromSpline()
+	# 	graph.arr[graph.current].UAV.orientation.x = quat[0]
+	# 	graph.arr[graph.current].UAV.orientation.y = quat[1]
+	# 	graph.arr[graph.current].UAV.orientation.z = quat[2]
+	# 	graph.arr[graph.current].UAV.orientation.w = quat[3]
+	# 	graph.arr[graph.currient].UGV.orientation.x = quat[0]
+	# 	graph.arr[graph.current].UGV.orientation.y = quat[1]
+	# 	graph.arr[graph.current].UGV.orientation.z = quat[2]
+	# 	graph.arr[graph.current].UGV.orientation.w = quat[3]
+
+	
+	with open('ugv_waypoints.npy', 'wb') as f:
+		UGV_waypoints = [np.array([i.UGV.position.x, i.UGV.position.y, i.UGV.position.z]) for i in graph.arr]
+		np.save(f, np.array(UGV_waypoints))
+
+	if len(graph.last_nodes) >= 3:
+		prev_node = np.array([graph.arr[graph.last_nodes[-1]].UAV.position.x, graph.arr[graph.last_nodes[-1]].UAV.position.y])
+		prev_2_node = np.array([graph.arr[graph.last_nodes[-2]].UAV.position.x, graph.arr[graph.last_nodes[-2]].UAV.position.y])
+		prev_3_node = np.array([graph.arr[graph.last_nodes[-3]].UAV.position.x, graph.arr[graph.last_nodes[-3]].UAV.position.y])
+		new_vect = prev_node - prev_2_node
+		new_vect /= np.linalg.norm(new_vect)
+		prev_vect = prev_2_node - prev_3_node
+		prev_vect /= np.linalg.norm(prev_vect)
+
+		dot = np.dot(new_vect, prev_vect)
+		# print("INNER PREV+: " + str(prev_3_node))
+		# print("INNER PREV: " + str(prev_2_node))
+		# print("INNER NEW: " + str(prev_node))
+		# print("INNER DOT: " + str(dot))
+
+	uav_wp.pose = graph.arr[graph.current].UAV
+	uav_wp_pub.publish(uav_wp)
+	time.sleep(1)
+	print("Added Node: ({0}, {1}, {2})".format(graph.arr[graph.current].UAV.position.x, graph.arr[graph.current].UAV.position.y, graph.arr[graph.current].UAV.position.z))
+
+
+def build_graph():
 	global direction
 	try:
 		if (joint_traj.shape == (0,)):
@@ -123,25 +184,38 @@ def build_graph(joint_traj):
 		print("UAVXYZ Not Defined")
 		return
 
+	# print("In Build")
 	graph_current_xy = np.array([graph.arr[graph.current].UAV.position.x, graph.arr[graph.current].UAV.position.y])
 	graph_current_xy.reshape((1,2))
 
 	distances = np.linalg.norm(joint_traj[:, :2] - graph_current_xy, axis=1)
 	
+	index = distances.argmin()
+
+	# distances = np.linalg.norm(joint_traj[:, :2] - joint_traj[index][:2].reshape((1,2)), axis=1)
 	# New Approach
 
-	mask = distances > NEW_WP_RESOLUTION
+	mask = distances >= NEW_WP_RESOLUTION
 
 	where_zero = np.where(mask==False)
 	# print(where_zero)
 
-	left_bound = where_zero[0][0] - 1
-	right_bound = where_zero[0][-1] + 1
+	if where_zero[0].shape[0] != 0:
+		left_bound = where_zero[0][0] - 1
+		right_bound = where_zero[0][-1] + 1
+	else:
+		right_bound = index - 1
+		left_bound = index + 1
 
 	
 
 	if (left_bound < 0):
 		left_bound = 0
+	if (left_bound >= joint_traj.shape[0]):
+		left_bound = joint_traj.shape[0] - 1
+
+	if (right_bound < 0):
+		right_bound = 0
 	if (right_bound >= joint_traj.shape[0]):
 		right_bound = joint_traj.shape[0] - 1
 
@@ -160,18 +234,17 @@ def build_graph(joint_traj):
 		if direction == True:
 			pass
 	except:
-		# 0 left
-		# 1 right
-		direction = 1
+		direction = -1
 	
-
+	
 	if (is_car != None and is_car == True):
-		vect = joint_traj[right_bound, 2] - graph_current_xy
+		vect = joint_traj[right_bound, :2] - graph_current_xy
 		car_vect = car_front - car_back 
-		dot = np.dot(vect, car_vect)
+		dot = np.dot(vect, car_vect.reshape((2,)))
 		if dot > 0:
-			ind_chosen = right_bound
 			direction = 0
+		else:
+			direction = 1
 
 	# print(direction)
 
@@ -180,187 +253,161 @@ def build_graph(joint_traj):
 	# else:
 	# 	ind_chosen = left_bound
 
-	
-	
-	# uav = Pose()
-	# ugv = Pose()
+	if direction == -1:
+		ind_chosen = right_bound
 
-	# i = ind_chosen
-	# # i = 0
+	if direction == 0:
+		ind_chosen = right_bound
+		direction = -2
+	elif direction == 1:
+		ind_chosen = left_bound
+		direction = -2
 
-	# uav.position.x = joint_traj[i, 0]
-	# uav.position.y = joint_traj[i, 1]
-	# uav.position.z = joint_traj[i, 2] + UAV_HEIGHT
+	if len(graph.last_nodes) >= 2:
+		prev_node = np.array([graph.arr[graph.last_nodes[-1]].UAV.position.x, graph.arr[graph.last_nodes[-1]].UAV.position.y])
+		prev_2_node = np.array([graph.arr[graph.last_nodes[-2]].UAV.position.x, graph.arr[graph.last_nodes[-2]].UAV.position.y])
 
-	# ugv.position.x = joint_traj[i, 0]
-	# ugv.position.y = joint_traj[i, 1]
-	# ugv.position.z = joint_traj[i, 2]
+		# print("OUTER PREV+: " + str(prev_2_node))
+		# print("OUTER PREV: " + str(prev_node))
 
-	# temp = Node(uav, ugv, len(graph.arr))
-	# graph.arr.append(temp)
-	# temp.parent = graph.current
-	# graph.arr[graph.current].children.append(temp.index)
-	# graph.current = temp.index
+		left_node = joint_traj[left_bound, :2].reshape((2,))
+		right_node = joint_traj[right_bound, :2].reshape((2,))
 
-	# graph.last_nodes.append(graph.current)
-	# if (len(graph.last_nodes) > DEQUE_SIZE):
-	# 	while (len(graph.last_nodes) != DEQUE_SIZE):
-	# 		graph.last_nodes.pop(0)
+		prev_vect = prev_node - prev_2_node
+		prev_vect /= np.linalg.norm(prev_vect)
+		
+		left_vect = left_node - current_uav_xyz[:2]
+		left_vect /= np.linalg.norm(left_vect)
 
-	# # if (len(graph.last_nodes) == DEQUE_SIZE):
-	# # 	quat = getYawFromSpline()
-	# # 	graph.arr[graph.current].UAV.orientation.x = quat[0]
-	# # 	graph.arr[graph.current].UAV.orientation.y = quat[1]
-	# # 	graph.arr[graph.current].UAV.orientation.z = quat[2]
-	# # 	graph.arr[graph.current].UAV.orientation.w = quat[3]
-	# # 	graph.arr[graph.current].UGV.orientation.x = quat[0]
-	# # 	graph.arr[graph.current].UGV.orientation.y = quat[1]
-	# # 	graph.arr[graph.current].UGV.orientation.z = quat[2]
-	# # 	graph.arr[graph.current].UGV.orientation.w = quat[3]
+		right_vect = right_node - current_uav_xyz[:2]
+		right_vect /= np.linalg.norm(right_vect)
 
-	# print("Added Node point: ({0}, {1}, {2})".format(graph.arr[graph.current].UAV.position.x, graph.arr[graph.current].UAV.position.y, graph.arr[graph.current].UAV.position.z))
-	# uav_wp.pose = graph.arr[graph.current].UAV
-	# uav_wp_pub.publish(uav_wp)
-	# time.sleep(1)
-	# with open('ugv_waypoints.npy', 'wb') as f:
-	# 	UGV_waypoints = [np.array([i.UGV.position.x, i.UGV.position.y, i.UGV.position.z]) for i in graph.arr]
-	# 	np.save(f, np.array(UGV_waypoints))
+		left_dot = np.dot(left_vect, prev_vect)
+		# left_dot = 1 - left_dot
 
-	# return
+		right_dot = np.dot(right_vect, prev_vect)
+		# right_dot = 1 - right_dot
+
+		if (left_dot > right_dot):
+			ind_chosen = left_bound
+			# print("OUTER NEW: " + str(left_node))
+			# print("OUTER DOT: " + str(left_dot))
+			# print("Chose Left: " + str(left_dot) + " > " + str(right_dot))
+			print("Chose Left")
+		else:
+			ind_chosen = right_bound
+			# print("OUTER NEW: " + str(right_node))
+			# print("OUTER DOT: " + str(1-right_dot))
+			print("Chose Right")
+			# print("Chose Right: " + str(right_dot) + " > " + str(left_dot))
+
+		# if (left_dot > 0):
+		# 	ind_chosen = left_bound
+		# 	print("Chose Left")
+		# 	break
+		# elif (right_dot > 0):
+		# 	ind_chosen = right_bound
+		# 	print("Chose Right")
+		# 	break
+		# left_bound = left_bound - 1
+
+		# right_bound = right_bound + 1
+
+		# if (left_bound < 0):
+		# 	left_bound = 0
+		# if (left_bound >= joint_traj.shape[0]):
+		# 	left_bound = joint_traj.shape[0] - 1
+
+		# if (right_bound < 0):
+		# 	right_bound = 0
+		# if (right_bound >= joint_traj.shape[0]):
+		# 	right_bound = joint_traj.shape[0] - 1
+
+		
+
+	# print(direction)	
+	add_node_to_graph(joint_traj[left_bound])
 
 	################
 
 	# Other Approach
-	index = distances.argmin()
 
-	# POSSIBLE POINT OF FAILURE: FORWARD AND BACKWARD
-	list  = reversed(range(index))
-	if direction == 0:
-		list = range(index)
-	for i in list:
+	# seq = range(index, joint_traj.shape[0])
+	# next_seq = reversed(range(index))
+	# if direction == 1:
+	# 	t = next_seq
+	# 	next_seq = seq
+	# 	seq = t
+
+	# for i in seq:
 		
-		dist = np.linalg.norm(joint_traj[i, :2] - graph_current_xy)
+	# 	dist = np.linalg.norm(joint_traj[i, :2] - graph_current_xy)
 
-		if (dist > NEW_WP_RESOLUTION):
+	# 	if (dist > NEW_WP_RESOLUTION):
 
-			uav = Pose()
-			ugv = Pose()
+	# 		# Check Direction compared to previous node
+	# 		dot = 0
+	# 		if len(graph.last_nodes) >= 2:
+	# 			prev_node = np.array([graph.arr[graph.last_nodes[0]].UAV.position.x, graph.arr[graph.last_nodes[0]].UAV.position.y])
+	# 			prev_2_node = np.array([graph.arr[graph.last_nodes[1]].UAV.position.x, graph.arr[graph.last_nodes[1]].UAV.position.y])
+	# 			prev_vect = prev_node - prev_2_node
+	# 			new_vect = joint_traj[i, :2].reshape((2,)) - prev_node
 
-			uav.position.x = joint_traj[i, 0]
-			uav.position.y = joint_traj[i, 1]
-			uav.position.z = joint_traj[i, 2] + UAV_HEIGHT
+	# 			dot = np.dot(new_vect, prev_vect)
+	# 			if (dot < 0):
+	# 				continue
 
-			ugv.position.x = joint_traj[i, 0]
-			ugv.position.y = joint_traj[i, 1]
-			ugv.position.z = joint_traj[i, 2]
+	# 		if dot != 0:
+	# 			print("OUTER: " + str(prev_2_node))
+	# 			print("OUTER: " + str(prev_node))
+	# 			print("OUTER: " + str(joint_traj[i, :2].reshape((2,))))
+	# 			print("OUTER: " + str(dot))
+	# 		add_node_to_graph(joint_traj[i])
 
-			temp = Node(uav, ugv, len(graph.arr))
-			graph.arr.append(temp)
-			temp.parent = graph.current
-			graph.arr[graph.current].children.append(temp.index)
-			graph.current = temp.index
+	# 		return
 
-			graph.last_nodes.append(graph.current)
-			if (len(graph.last_nodes) > DEQUE_SIZE):
-				while (len(graph.last_nodes) != DEQUE_SIZE):
-					graph.last_nodes.pop(0)
+	# for i in next_seq:
+	# 	dist = np.linalg.norm(joint_traj[i, :2] - graph_current_xy)
 
-			# if (len(graph.last_nodes) == DEQUE_SIZE):
-			# 	quat = getYawFromSpline()
-			# 	graph.arr[graph.current].UAV.orientation.x = quat[0]
-			# 	graph.arr[graph.current].UAV.orientation.y = quat[1]
-			# 	graph.arr[graph.current].UAV.orientation.z = quat[2]
-			# 	graph.arr[graph.current].UAV.orientation.w = quat[3]
-			# 	graph.arr[graph.currient].UGV.orientation.x = quat[0]
-			# 	graph.arr[graph.current].UGV.orientation.y = quat[1]
-			# 	graph.arr[graph.current].UGV.orientation.z = quat[2]
-			# 	graph.arr[graph.current].UGV.orientation.w = quat[3]
+	# 	if (dist > NEW_WP_RESOLUTION):
 
-			print("Added Node point: ({0}, {1}, {2})".format(graph.arr[graph.current].UAV.position.x, graph.arr[graph.current].UAV.position.y, graph.arr[graph.current].UAV.position.z))
-			uav_wp.pose = graph.arr[graph.current].UAV
-			uav_wp_pub.publish(uav_wp)
-			time.sleep(1)
-			with open('ugv_waypoints.npy', 'wb') as f:
-				UGV_waypoints = [np.array([i.UGV.position.x, i.UGV.position.y, i.UGV.position.z]) for i in graph.arr]
-				np.save(f, np.array(UGV_waypoints))
+	# 		# Check Direction compared to previous node
+	# 		dot = 0
+	# 		if len(graph.last_nodes) >= 2:
+	# 			prev_node = np.array([graph.arr[graph.last_nodes[0]].UAV.position.x, graph.arr[graph.last_nodes[0]].UAV.position.y])
+	# 			prev_2_node = np.array([graph.arr[graph.last_nodes[1]].UAV.position.x, graph.arr[graph.last_nodes[1]].UAV.position.y])
+	# 			prev_vect = prev_node - prev_2_node
+	# 			new_vect = joint_traj[i, :2].reshape((2,)) - prev_node
 
-			return
+	# 			dot = np.dot(new_vect, prev_vect)
+	# 			if (dot < 0):
+	# 				continue
+
+			
+	# 		add_node_to_graph(joint_traj[i])
+
+	# 		return
+
 	############
 
 def center_GPS_cb(data):
-	# global joint_traj_arr    
-	joint_traj_arr = np.array([np.array(i.positions) for i in data.points])
-	build_graph(joint_traj_arr)
-	# print(joint_traj_arr.shape)
-	# print("Hi")
-	# joint_traj_arr = joint_traj_arr[:].positions
-	# print(joint_traj_arr[0])
-
-	# print(joint_traj_arr)
-	# print("Received GPS point: ({0}, {1}, {2})".format(data.point.x, data.point.y, data.point.z))
-	# print(len(joint_traj_arr))
-	
-	# if(gps_point_forward(data)):
-	#     arr_1 = np.array([data.point.x, data.point.y])
-	#     arr_2 = np.array([graph.arr[graph.current].UAV.position.x, graph.arr[graph.current].UAV.position.y ])
-
-	#     dist = np.linalg.norm(arr_1 - arr_2)
-	#     print(dist)
-	#     print(arr_1)
-	#     print(arr_2)
-	#     if (dist > NEW_WP_RESOLUTION):
-			# uav = Pose()    
-			# ugv = Pose()
-
-			# uav.position.x = data.point.x
-			# uav.position.y = data.point.y
-			# uav.position.z = data.point.z + 18.0
-
-			# ugv.position.x = data.point.x
-			# ugv.position.y = data.point.y
-			# ugv.position.z = data.point.z
-
-			# temp = Node(uav, ugv, len(graph.arr))
-			# graph.arr.append(temp)
-			# temp.parent = graph.current
-			# graph.arr[graph.current].children.append(temp.index)
-			# graph.current = temp.index
-
-			# graph.last_nodes.append(graph.current)
-			# if (len(graph.last_nodes) > DEQUE_SIZE):
-			# 	while (len(graph.last_nodes) != DEQUE_SIZE):
-			# 		graph.last_nodes.pop(0)
-
-			# if (len(graph.last_nodes) == DEQUE_SIZE):
-			# 	quat = getYawFromSpline()
-			# 	graph.arr[graph.current].UAV.orientation.x = quat[0]
-			# 	graph.arr[graph.current].UAV.orientation.y = quat[1]
-			# 	graph.arr[graph.current].UAV.orientation.z = quat[2]
-			# 	graph.arr[graph.current].UAV.orientation.w = quat[3]
-			# 	graph.arr[graph.current].UGV.orientation.x = quat[0]
-			# 	graph.arr[graph.current].UGV.orientation.y = quat[1]
-			# 	graph.arr[graph.current].UGV.orientation.z = quat[2]
-			# 	graph.arr[graph.current].UGV.orientation.w = quat[3]
-			
-			# print("Added Node point: ({0}, {1}, {2})".format(graph.arr[graph.current].UAV.position.x, graph.arr[graph.current].UAV.position.y, graph.arr[graph.current].UAV.position.z))
-			# uav_wp.pose = graph.arr[graph.current].UAV
-			# uav_wp_pub.publish(uav_wp)
-			# get_GPS_flag.data = False
-			# get_GPS_pub.publish(get_GPS_flag)
+	global joint_traj
+	joint_traj = np.array([np.array(i.positions) for i in data.points])
 
 def current_uav_pose_cb(data):
 	global current_uav_pose, current_uav_xyz
 	current_uav_pose = data
 
-	start_uav = current_uav_pose.pose
-	start_ugv = start_uav
-	start_ugv.position.z -= UAV_HEIGHT
-
-	node = Node(start_uav, start_ugv, len(graph.arr))
-	graph.arr.append(node)
-
 	current_uav_xyz = np.array([data.pose.position.x, data.pose.position.y, data.pose.position.z])
 	current_uav_xyz = current_uav_xyz.reshape((3, 1)).T
+
+	if len(graph.arr) == 0:
+		# print("Root")
+		start_ugv = current_uav_pose.pose
+		start_ugv.position.z -= UAV_HEIGHT
+		start_ugv = np.array([start_ugv.position.x, start_ugv.position.y, start_ugv.position.z])
+		add_node_to_graph(start_ugv)
+		# print("Done Root")
 	
 	# Reached Waypoint
 	arr_1 = np.array([uav_wp.pose.position.x, uav_wp.pose.position.y])
@@ -377,7 +424,7 @@ def current_uav_pose_cb(data):
 		end_reached_mapping_pub.publish(end_reached_flag)	
 
 def car_state_cb(data):
-	
+	global is_car, car_back, car_front
 	is_car = data.isMaskDetected.data
 	car_back = np.array([[data.car_back.x, data.car_back.y]])
 	car_front = np.array([[data.car_front.x, data.car_front.y]])
@@ -420,21 +467,30 @@ def graph_planner():
 	# start_ugv = start_uav
 	# start_ugv.position.z = start_ugv.position.z - UAV_HEIGHT
 	
+	global joint_traj
+	joint_traj = None
 
 	global end_ugv
 	end_ugv = Pose()
+
+	global current_uav_xyz
+	current_uav_xyz = None
 
 	# , current_uav_xyz
 	# joint_traj_arr = np.array([])
 	# current_uav_xyz = np.array([])
 	# print(joint_traj_arr.shape)
 
-	# rate = rospy.Rate(10.0)
-	# while not rospy.is_shutdown():
-	# 	build_graph()
-	# 	rate.sleep()
+	rate = rospy.Rate(10.0)
+	while not rospy.is_shutdown():
+		if joint_traj is not None and current_uav_xyz is not None:
+			build_graph()
+			is_car = None
+			joint_traj = None
+			current_uav_xyz = None
 
-	rospy.spin()
+		rate.sleep()
+
 		
 
 
