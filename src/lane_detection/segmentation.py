@@ -38,7 +38,7 @@ def fit_spline(x,y):
         path_x.append(x[i])
         path_y.append(y[i])
     t = np.linspace(0, len(path_x), len(path_x))/ 50
-    smallS = 1000
+    smallS = 10000
     factor = 1
     x = np.array(path_x)
     try:
@@ -132,7 +132,7 @@ def find_path_with_car():
     pre_est = norm_mean
     dp = norms*norm_mean
     dp = np.sum(dp, axis=2)
-    lane = dp > 0.9
+    lane = dp > 0.99
     lane[mask == 255] = 1
     lane=binary_erosion(lane,disk(10))
     lane = np.uint8(lane)
@@ -168,7 +168,7 @@ def find_path_without_car(dep):
     norms=normalized(norms,axis=2)
     norms=project_normals(norms)
     dp=np.sum(norms*pre_est,axis=2)
-    lane=dp>0.97 ## world based parameter
+    lane=dp>0.995 ## world based parameter
     lane=binary_erosion(lane,disk(5))
     lane=np.uint8(lane)
     (numLabels, labels, stats, centroids)=cv.connectedComponentsWithStats(lane,4)
@@ -334,7 +334,8 @@ def segmenter():
         except Exception as e:
             iscar=False
         if iscar:
-            path=find_path_with_car(dep)
+            # path=find_path_with_car(dep)
+            path=find_path_without_car(dep)
         else:
             path=find_path_without_car(dep)
         end_time=time.time()

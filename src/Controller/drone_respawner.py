@@ -30,7 +30,7 @@ def main():
 
 
     pub1 = rospy.Publisher("uav_wp", PoseStamped, queue_size=1000000) 
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(20)
     i=0
 
     global flag

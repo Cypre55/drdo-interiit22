@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from pyexpat import XML_PARAM_ENTITY_PARSING_ALWAYS
 import rospy
 from prius_msgs.msg import Control    
 from nav_msgs.msg import Odometry 
@@ -9,6 +10,7 @@ import math
 from scipy.spatial import KDTree
 from geometry_msgs.msg import Point,PoseStamped, Vector3
 from tf.transformations import euler_from_quaternion 
+from trajectory_msgs.msg import JointTrajectory
 
 from drdo_interiit22.msg import customMessage
 
@@ -35,25 +37,35 @@ n_controls = 2
 
 
 
-N =67#73                                                                           # Prediction horizon(same as control horizon)
+N =8#73                                                                           # Prediction horizon(same as control horizon)
 error_allowed = 0.1
 U_ref = np.array([0,0], dtype ='f')                                             # U_ref contains referance acc and steer
 V_ref = 0.3#6#10                                                                      # referance velocity 
 
 
-Q_x = 250000#3000                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 250000#3000 
-Q_V = 1000#1000000                                                                          
-Q_theta = 1000#200 
+# Q_x = 250000#3000                                                                      # gains to control error in x,y,V,theta during motion
+# Q_y = 250000#3000 
+# Q_V = 1000#1000000                                                                          
+# Q_theta = 1000#200 
 
-R1 = 1e+8	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
-R2 = 1e+7#10000
+Q_x = 11000#3000                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 11000#3000 
+Q_V = 10#1000000                                                                          
+Q_theta = 1900#200 
+
+# R1 = 1e+10	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
+# R2 = 1e+7#10000
+
+# R1 = 0.5*1e+7
+# R2 = 1e+6
+# R1 = 9000	
+# R2 = 235000
+
+R1 = 13000	
+R2 = 235000
+
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
-
-
-
-
 
 """# parameters that depend on simulator """
 
@@ -79,16 +91,27 @@ steer_min = -steer_max
 
 
 
-global x,y,V,theta,throttle,steer_input                                      # (x,y,V,theta) will store the current position,current speed and orientation 
+global throttle,steer_input                                      # (x,y,V,theta) will store the current position,current speed and orientation 
 																			 # throttle and steer_input will store the inputs to the vehicle 
-																			 
-global total_path_points                                                                                                                                    
+x,y,V,theta = 0,0,0,0
+x_prev,y_prev,V_prev = 0,0,0									 
+global total_path_points    
+is_ninety = True                                                                                                                                
 total_path_points = 0                                                                                                                                                                            
 global path                                                                                                                                       
 
 flag = 0
+brake_vals = 0
+path = np.array([])
 
-
+def center_GPS_cb(data):
+	global path
+	# global joint_traj_arr    
+	
+	joint_traj_arr = np.array([np.array(i.positions) for i in data.points])
+	path= joint_traj_arr[:,:2]
+	# print(path.shape)
+	# path_new = 
 
 def equidist_path(path,total_path_points):
 
@@ -139,6 +162,7 @@ def equidist_path(path,total_path_points):
 
 
 	path_final = np.concatenate([x_regular, y_regular], axis = 1)
+
 	# plt.plot(path[:,0],path[:,1], color = 'r') 
 	# plt.plot(path_final[:,0],path_final[:,1], color = 'b')
 	path = path_final
@@ -159,7 +183,7 @@ def pathfunc():
 			# total_path_points = len(Path.poses)
 			# total_path_points = len(path_x)
 			# path = np.load("/home/satwik/catkin_ws/src/drdo-interiit22/graph_nodes.npy")
-			path = np.load("ugv_waypoints.npy")
+			path = np.load("Full_World1_RUN.npy")
 			total_path_points = (path[:,0]).size
 
 			path = equidist_path(path,total_path_points)
@@ -180,32 +204,11 @@ def pathfunc():
 
 def odomfunc(odom):
 	
-	global x,y,V,theta
-	
-
-	
-	# x = odom.pose.pose.position.x 
-	# y = odom.pose.pose.position.y 
-	# V = math.sqrt(odom.twist.twist.linear.x**2 + odom.twist.twist.linear.y**2)
-
-	# quaternions =  odom.pose.pose.orientation  
-	
-
-
-
-	
-	# index = odom.name.index('prius')   
-	
-	# x = odom.pose[index].position.x 
-	# y = odom.pose[index].position.y 
-	# V = math.sqrt(odom.twist[index].linear.x**2 + odom.twist[index].linear.y**2)
-
-	# quaternions =  odom.pose[index].orientation  
-
-
+	global x,y,V,theta,is_ninety
 
 	x = odom.car_state.pose.pose.position.x
 	y = odom.car_state.pose.pose.position.y
+	is_ninety = odom.isCarNinety.data
 
 	quaternions =  odom.car_state.pose.pose.orientation
 
@@ -229,22 +232,23 @@ def lane_norm_cb(data):
 
 
 def my_mainfunc():
+	global is_ninety, x_prev,y_prev,V_prev,x,y,V,brake_vals
 	rospy.init_node('mpc_multipleShooting_pathTracking_carDemo', anonymous=True)
 	# rospy.Subscriber('/base_pose_ground_truth' , Odometry, odomfunc)   
 	# rospy.Subscriber('/mavros/local_position/odom' , Odometry, odomfunc)  
 	# rospy.Subscriber('/gazebo/model_states' , ModelStates, odomfunc)    
-	# rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)    
+	rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)    
 	# rospy.Subscriber('/car_state/kalman_complete' , customMessage, odomfunc)
-	rospy.Subscriber('/car_state/filter_complete' , customMessage, odomfunc)    
-	
-	rospy.Subscriber('/lane/norm',Vector3,lane_norm_cb)    
+	# rospy.Subscriber('/car_state/filter_complete' , customMessage, odomfunc)    
+	rospy.Subscriber('/car_state/filter_complete' , customMessage, odomfunc)   
+	rospy.Subscriber("/lane/mid", JointTrajectory, center_GPS_cb)
 
 
-	path = np.load("ugv_waypoints.npy")
-	total_path_points = (path[:,0]).size
+	path_global = np.load("ugv_waypoints.npy")
+	total_path_points = (path_global[:,0]).size
 
-	path = equidist_path(path,total_path_points)
-     
+	path_global = equidist_path(path_global,total_path_points)
+	 
 
 	#rospy.Subscriber('/astroid_path', Path, pathfunc)
 	# pathfunc()
@@ -361,12 +365,12 @@ def my_mainfunc():
 
 
 	X_init = np.array([x,y,V,theta], dtype = 'f')                                                                                                               
-	X_target = np.array([ path[total_path_points-1][0], path[total_path_points-1][1],0, 0 ]  , dtype = 'f')            #theta_target not considered for stopping condition and Velocity at target is zero !  
+	X_target = np.array([ path[len(path)-1][0], path[len(path)-1][1],0, 0 ]  , dtype = 'f')            #theta_target not considered for stopping condition and Velocity at target is zero !  
 
 	P = X_init      
 	close_index = KDTree(path).query(P[0:n_states-2])[1]
 
-	for i in range(0,N):                                                                              
+	for i in range(0,N):                                                                         
 		P = ca.vertcat(P,path[close_index+i,0:2])        
 		P = ca.vertcat(P,V_ref)                                                                                                                                                                
 		P = ca.vertcat(P, math.atan((path[close_index+i+1][1] - path[close_index+i][1])/(path[close_index+i+1][0] - path[close_index+i][0])) )    
@@ -385,8 +389,14 @@ def my_mainfunc():
 
 
 	try:
-		while ( ca.norm_2( P[0:n_states-1].reshape((n_states-1,1)) - X_target[0:n_states-1] ) > error_allowed  ) :                                                                                         
-			predict_velocity
+		while ( ca.norm_2( P[0:n_states-1].reshape((n_states-1,1)) - X_target[0:n_states-1] ) > error_allowed  ) :       
+			print(path.shape)
+			if np.abs(x)<0.001:
+				# print("PREV", x)
+				x,y,V = x_prev, y_prev,V_prev  
+				# print("AFTER",x)  
+			else:
+				x_prev,y_prev,V_prev = x,y,V                                                                              
 			args = {
 					'lbx':lbx,
 					'lbg':lbg,	    
@@ -421,19 +431,30 @@ def my_mainfunc():
 			msg.brake = 0.0 
 			msg.steer = steer_input
 			msg.shift_gears =2
-			if throttle < 0:
-				# msg.shift_gears =3                                              # reverse gear
-				# throttle = -throttle
-				msg.throttle = 0.0                                  
-				msg.brake = -throttle * 80 												#brake
-				msg.steer = steer_input
-				msg.shift_gears =2
+			# if throttle < 0:
+			# 	# msg.shift_gears =3                                              # reverse gear
+			# 	# throttle = -throttle
+			# 	msg.throttle = 0.0                                  
+			# 	msg.brake = -20*throttle  												#brake
+			# 	msg.steer = steer_input
+			# 	msg.shift_gears =2
 			
 			# if delta_z 
-
-			if(V > 1.5):
-				msg.brake = 0.35
-
+			# if V>6.5:
+			# 	msg.brake  = 0.1
+			if not (is_ninety):
+				brake_vals +=1
+				# if brake_vals ==4:
+				print("Waiting for the drone")
+				msg.brake = 1
+					# brake_vals = 0
+			plt.clf()
+			print("GLOBAL_SHAPE",path_global.shape)
+			print("LOCAL_SHAPE",path.shape)
+			plt.scatter(x,y)
+			plt.plot(path_global[:400, 0], path_global[:400, 1])
+			plt.plot(path[:,0],path[:,1])
+			plt.pause(0.0001)
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
 			print(round(V,2)," ",KDTree(path).query(np.array([x,y]))[0],"   ", throttle )
