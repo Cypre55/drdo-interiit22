@@ -20,7 +20,7 @@ import time
 UAV_HEIGHT = 18.0
 PI = 3.1415
 REACH_THRESHOLD = 0.5
-NEW_WP_RESOLUTION = 5
+NEW_WP_RESOLUTION = 3
 DEQUE_SIZE = 4
 
 
@@ -239,9 +239,9 @@ def build_graph():
     if reaching_flag == True:
         return
 
-    plt.clf()
-    plt.scatter(current_uav_xyz[0, 0], current_uav_xyz[0, 1])
-    plt.plot(joint_traj[:, 0], joint_traj[:, 1])
+    # plt.clf()
+    # plt.scatter(current_uav_xyz[0, 0], current_uav_xyz[0, 1])
+    # plt.plot(joint_traj[:, 0], joint_traj[:, 1])
 
     # print("In Build")
     graph_current_xy = np.array([graph.arr[graph.current].UAV.position.x, graph.arr[graph.current].UAV.position.y])
@@ -354,13 +354,13 @@ def build_graph():
         print("Car not visible in frame. !!")
 
     # plt.scatter(joint_traj[ind_chosen][0], joint_traj[ind_chosen][1], color='b', alpha=0.7, linewidth = 10)
-    plt.scatter(joint_traj[right_bound][0], joint_traj[right_bound][1], color = 'g', alpha=1)
-    plt.scatter(joint_traj[left_bound][0], joint_traj[left_bound][1], color = 'r', alpha = 1)
+    # plt.scatter(joint_traj[right_bound][0], joint_traj[right_bound][1], color = 'g', alpha=1)
+    # plt.scatter(joint_traj[left_bound][0], joint_traj[left_bound][1], color = 'r', alpha = 1)
     
-    plt.scatter(joint_traj[index_drn][0], joint_traj[index_drn][1], color = 'k', alpha = 0.5, linewidth = 5)
+    # plt.scatter(joint_traj[index_drn][0], joint_traj[index_drn][1], color = 'k', alpha = 0.5, linewidth = 5)
 
 
-    plt.pause(0.003)
+    # plt.pause(0.003)
 
     # if flag == True:
     #     # plt.show()

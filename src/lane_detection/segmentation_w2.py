@@ -23,7 +23,8 @@ pre_est=np.array([0.,0.,1.]).reshape((1,1,3))
 dep=np.zeros((480,640))
 rgb=np.zeros((480,640,3))
 mask=np.zeros((480,640))
-lane_mask=np.zeros((480,640))
+lane_mask=np.zeros((480,640),dtype=np.uint8)
+final_mask=np.zeros((480,640),dtype=np.uint8)
 drone_pose=PoseStamped()
 def fit_spline(x,y):
     resolution = 0.1
@@ -92,9 +93,55 @@ def fill_holes(gray):
     gray = cv.bitwise_not(des)
     return gray
 
+def find_grad_sobel(img):
+    X=cv.Sobel(img,cv.CV_64F,1,0,5)
+    Y=cv.Sobel(img,cv.CV_64F,0,1,5)
+    Z=np.ones_like(X)
+    der=np.stack((X,Y,Z),axis=2)
+    return der
+
+def normalized(a, axis=-1, order=2):
+    l2 = np.atleast_1d(np.linalg.norm(a, order, axis))
+    l2[l2==0] = 1
+    return a / np.expand_dims(l2, axis)
+
+def dot(x,y):
+    return np.sum(x*y)
+
+def project_normals(norms):
+    new_norms=norms.reshape((-1,3))
+    new_norms=new_norms.T
+    global drone_pose
+    quaternion = (drone_pose.pose.orientation.x,drone_pose.pose.orientation.y,drone_pose.pose.orientation.z,drone_pose.pose.orientation.w)
+    rot = tf.transformations.quaternion_matrix(quaternion)[:3,:3]
+    new_norms = np.matmul(rot, new_norms)
+    new_norms=new_norms.T
+    new_norms=new_norms.reshape((480,640,3))
+    # new_norms=new_norms.reshape((2,3,3))
+    return new_norms
+
+
+
 def find_path_without_car(dep,rgb):
+    global lane_mask,final_mask
+    norms=find_grad_sobel(dep)
+    norms=normalized(norms,axis=2)
+    norms=project_normals(norms)
+    dp=np.sum(norms*pre_est,axis=2)
+    lane=dp>0.95
+    lane=binary_erosion(lane,disk(5))
+    lane=np.uint8(lane)
+    (numLabels, labels, stats, centroids)=cv.connectedComponentsWithStats(lane,4)
+    mx=0
+    idx=-1
+    for i in range(1,numLabels):
+        if stats[i, cv.CC_STAT_AREA]>mx:
+            mx = stats[i, cv.CC_STAT_AREA]
+            idx=i
+    lane=labels==idx
+    lane_mask=255*np.uint8(lane)
     kmean_output = apply_kmeans(rgb)
-    thresh=np.uint8((np.max(kmean_output)+np.min(kmean_output))/2)
+    thresh=np.int((np.int(np.max(kmean_output))+np.int(np.min(kmean_output)))/2)
     kmean_output[kmean_output > thresh] = 255  # a bit wrong, need to fix it
     kmean_output[kmean_output <= thresh] = 0
     kmean_output[np.isnan(dep)] = 0
@@ -104,28 +151,28 @@ def find_path_without_car(dep,rgb):
     lane=np.array(biggest_comp,dtype=np.uint8)
     lane=np.uint8(fill_holes(biggest_comp))
     lane=binary_closing(lane,disk(5))
+    final_mask=255*lane
+    # cv.imshow('Lane',255*lane)
+    # cv.waitKey(1)
     edges=skeletonize(lane^binary_erosion(lane,disk(5)))
-    cv.imshow("LANE",255*edges.astype(np.uint8))
-    cv.imshow("MASK",biggest_comp)
-    cv.waitKey(1)
-    # _,labels=cv.connectedComponents(np.uint8(edges),8)
-    # x,y=np.where(labels==1)
-    # lx,ly=fit_spline(x,y)
-    # if lx is None:
-    #     return None
-    # x,y=np.where(labels==2)
-    # rx,ry=fit_spline(x,y)
-    # if rx is None:
-    #     return None
-    # mx,my=(lx+rx)/2,(ly+ry)/2
-    # mx1,my1=fit_spline(mx,my)
-    # mx1=np.int32(mx1)
-    # my1=np.int32(my1)
-    # mask=mx1<480
-    # mask=mask&(my1<640)
-    # mx1=mx1[mask]
-    # my1=my1[mask]
-    # return [lx,ly,rx,ry,mx1,my1]
+    _,labels=cv.connectedComponents(np.uint8(edges),8)
+    x,y=np.where(labels==1)
+    lx,ly=fit_spline(x,y)
+    if lx is None:
+        return None
+    x,y=np.where(labels==2)
+    rx,ry=fit_spline(x,y)
+    if rx is None:
+        return None
+    mx,my=(lx+rx)/2,(ly+ry)/2
+    mx1,my1=fit_spline(mx,my)
+    mx1=np.int32(mx1)
+    my1=np.int32(my1)
+    mask=mx1<480
+    mask=mask&(my1<640)
+    mx1=mx1[mask]
+    my1=my1[mask]
+    return [lx,ly,rx,ry,mx1,my1]
 
 def callback(data):
     bridge=CvBridge()
@@ -193,9 +240,9 @@ def poseback(data):
 def publish_traj(pub,cx,cy,name):
     if name=="LEFT":
         plt.clf()
-    plt.plot(cy,cx)
-    plt.draw()
-    plt.pause(0.00000000001)
+    # plt.plot(cy,cx)
+    # plt.draw()
+    # plt.pause(0.00000000001)
     global dep
     path=projection(cx,cy,dep)[:3]
     traj=JointTrajectory()
@@ -208,6 +255,7 @@ def publish_traj(pub,cx,cy,name):
     pub.publish(traj)
 
 def segmenter():
+    global pub
     rospy.init_node('segmenter')
     rospy.Subscriber("/depth_camera/depth/image_raw", Image, callback)
     rospy.Subscriber("/depth_camera/rgb/image_raw", Image, callback1)
@@ -215,18 +263,20 @@ def segmenter():
     left_pub=rospy.Publisher('/lane/left',JointTrajectory,queue_size=1)
     right_pub=rospy.Publisher('/lane/right',JointTrajectory,queue_size=1)
     mid_pub=rospy.Publisher('/lane/mid',JointTrajectory,queue_size=1)
-    # mask_pub=rospy.Publisher('/lane/mask',Image,queue_size=1)
+    mask_pub=rospy.Publisher('/lane/mask',Image,queue_size=1)
+    pub=rospy.Publisher('/finalmask',Image,queue_size=1)
     bridge=CvBridge()
     while not rospy.is_shutdown():
         # start_time=time.time()
         global dep
         path=find_path_without_car(dep,rgb)
+        mask_pub.publish(bridge.cv2_to_imgmsg(lane_mask))
         # end_time=time.time()
-        # if path is not None:
-        #     publish_traj(left_pub,path[0],path[1],"LEFT")
-        #     publish_traj(right_pub,path[2],path[3],"RIGHT")
-        #     publish_traj(mid_pub,path[4],path[5],"MID")
-        #     mask_pub.publish(bridge.cv2_to_imgmsg(lane_mask))
+        if path is not None:
+            publish_traj(left_pub,path[0],path[1],"LEFT")
+            publish_traj(right_pub,path[2],path[3],"RIGHT")
+            publish_traj(mid_pub,path[4],path[5],"MID")
+            pub.publish(bridge.cv2_to_imgmsg(np.uint8(final_mask)))
         plt.ion()
         plt.show()
 

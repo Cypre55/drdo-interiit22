@@ -253,13 +253,35 @@ def calculations():
         area_ratio = area / (rect[1][0] * rect[1][1])
 
         approx = cv2.approxPolyDP(cnt, 0.009 * cv2.arcLength(cnt, True), True)
-        # area = cv2.contourArea(cnt)
+        # ellipse = cv2.fitEllipse(approx)
+        ratioE = 0
+        # print(len(approx))
+        # print(approx.shape)
+        if (len(approx) >= 5):
+            (x, y), (MA, ma), angle = cv2.fitEllipse(approx)
+            ellipse = cv2.fitEllipse(approx)
+            # area = cv2.contourArea(cnt)
+            x = int(x)
+            y = int(y)
+
+            ratioE = ma/MA
+            condition = ratioE>1.4 and ratioE<1.9
+            print(ratioE)
+        else:
+            condition = True
 
         # print(area)
-        if  area_ratio>0.8 and area > min_area and area < max_area : #area_ratio > 0.8 and
+        if  area_ratio>0.8 and area > min_area and area < max_area and condition: #area_ratio > 0.8 and
             pubMsg.isMaskDetected.data = True
             # cv2.drawContours(image, [box],0,(200,0,0),3,)
-            cv2.drawContours(image, [approx], 0, (0, 200, 0), 2, )
+            cv2.drawContours(image, [approx], 0, (0, 200, 0), 2 )
+            # cv2.drawContours(image, [ellipse], 0, (200, 0, 0), 2 )
+            
+            if ratioE != 0:
+                image = cv2.ellipse(image,ellipse,(0,255,0),2)
+                print(ratioE)
+                
+                # cv2.putText(image, '{}'.format(ratioE), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
 
             # cv2.imshow("IMAGE",image)
             # cv2.waitKey(0)
@@ -319,9 +341,9 @@ def calculations():
                 # SWAPPED X Y for Projection to work
                 coord = projection(np.array([ybot, cy, ytop]), np.array([xbot, cx, xtop]), cv_depth, drone_pose)
                 # coord = projection(np.array([xtop]), np.array([ytop]), cv_depth, drone_pose)
-#                 cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-#                 cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
-#                 cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
+                cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+                cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
+                cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
 
                 # cv2.circle(image,(int(cx),int(cy)),7,(0,0,255),-1)
            
@@ -341,9 +363,9 @@ def calculations():
                 coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
                 
                 # coord = projection(np.array([xbot]), np.array([ybot]), cv_depth, drone_pose)
-#                 cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-#                 cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
-#                 cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
+                cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
+                cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
+                cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
             # cv2.imwrite("car_contour_front.png",image)
             # angle = angle * 180 / np.pi
             # x_y_yaw = str(cx) + "," + str(cy) + "," + str(angle)

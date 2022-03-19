@@ -168,6 +168,7 @@ def find_path_without_car(dep):
     norms=normalized(norms,axis=2)
     norms=project_normals(norms)
     dp=np.sum(norms*pre_est,axis=2)
+    dp[np.isnan(dp)] = 0
     lane=dp>0.995
     lane=binary_erosion(lane,disk(5))
     lane=np.uint8(lane)
@@ -180,6 +181,8 @@ def find_path_without_car(dep):
             idx=i
     lane=labels==idx
     lane_mask=255*np.uint8(lane)
+    if not np.any(lane):
+        return None
     pre_est=np.mean(norms[lane], axis=0)
     edges=skeletonize(lane^binary_erosion(lane,disk(5)))
     _,labels=cv.connectedComponents(np.uint8(edges),8)
