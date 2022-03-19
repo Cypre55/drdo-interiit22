@@ -53,7 +53,9 @@ def main():
 	global positions,pos_drones,vel,vel_drones
 	rospy.init_node('high_level_velocity_control',anonymous=True)
 	# rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)  
-	rospy.Subscriber('/car_state/kalman_complete' , customMessage, odomfunc)  
+	# rospy.Subscriber('/car_state/kalman_complete' , customMessage, odomfunc)  
+	rospy.Subscriber('/car_state/filter_complete' , customMessage, odomfunc)    
+
 	
 	
 	instance = rospy.Publisher('/mavros/setpoint_velocity/cmd_vel_unstamped', Twist, queue_size=10) 

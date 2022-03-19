@@ -136,8 +136,10 @@ def odomfunc(odom):
 	iter.append(len(iter)+1)
 
 	plt.clf()
-	plt.plot(iter, v_measured, color='r')
-	plt.plot(iter, v_kalman, color='b')
+	# plt.plot(iter, v_measured, color='r')
+	# plt.plot(iter, v_kalman, color='b')
+	# plt.plot(pose_for_quiver_x, pose_for_quiver_y, color='r')
+	# plt.plot(kalman_pose_for_quiver_x, kalman_pose_for_quiver_y, color='b')
 	plt.pause(0.001)
 
 

@@ -88,6 +88,8 @@ global path
 
 flag = 0
 
+
+
 def equidist_path(path,total_path_points):
 
 	# global total_path_points,path
@@ -175,9 +177,11 @@ def pathfunc():
 		# path[i][1] = path_y[i]	   	
 
 
+
 def odomfunc(odom):
 	
 	global x,y,V,theta
+	
 
 	
 	# x = odom.pose.pose.position.x 
@@ -213,6 +217,9 @@ def odomfunc(odom):
 	roll,pitch,yaw = euler_from_quaternion(quaternions_list)
 	theta = yaw
 
+
+
+
 delta_z = None
 slope_throttle = 1
 
@@ -227,7 +234,9 @@ def my_mainfunc():
 	# rospy.Subscriber('/mavros/local_position/odom' , Odometry, odomfunc)  
 	# rospy.Subscriber('/gazebo/model_states' , ModelStates, odomfunc)    
 	# rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)    
-	rospy.Subscriber('/car_state/kalman_complete' , customMessage, odomfunc)
+	# rospy.Subscriber('/car_state/kalman_complete' , customMessage, odomfunc)
+	rospy.Subscriber('/car_state/filter_complete' , customMessage, odomfunc)    
+	
 	rospy.Subscriber('/lane/norm',Vector3,lane_norm_cb)    
 
 
@@ -285,9 +294,6 @@ def my_mainfunc():
 	for i in range(0,N):                                                                                                                                                                                                                         
 		cost_pred_st = ca.mtimes(  ca.mtimes( (X[0:n_states,i] - P[n_states*(i+1) :n_states*(i+1) + n_states ].reshape((n_states,1)) ).T , Q )  ,  (X[0:n_states,i] - P[n_states*(i+1) :n_states*(i+1) + n_states ].reshape((n_states,1)) )  )  + ca.mtimes(  ca.mtimes( ( (U[0:n_controls,i]) - P[n_states*(N+1)+n_controls*(i):n_states*(N+1)+n_controls*(i) + n_controls].reshape((n_controls,1)) ).T , R )  ,  U[0:n_controls,i] - P[n_states*(N+1)+n_controls*(i):n_states*(N+1)+n_controls*(i) + n_controls].reshape((n_controls,1))  )  
 		obj = obj + cost_pred_st  
-
-	
-  
 	pred_st = np.zeros((n_states,1))     
 	for i in range(0,N+1):                                                                                                   # adding contraints so the predictions are in sync with vehicle model  
 		if i == 0:
@@ -380,7 +386,7 @@ def my_mainfunc():
 
 	try:
 		while ( ca.norm_2( P[0:n_states-1].reshape((n_states-1,1)) - X_target[0:n_states-1] ) > error_allowed  ) :                                                                                         
-			
+			predict_velocity
 			args = {
 					'lbx':lbx,
 					'lbg':lbg,	    
@@ -424,7 +430,7 @@ def my_mainfunc():
 				msg.shift_gears =2
 			
 			# if delta_z 
-			
+
 			if(V > 1.5):
 				msg.brake = 0.35
 
@@ -465,6 +471,7 @@ def my_mainfunc():
 				initial_con[i] = X_U_sol[n_states*(N+1)+i+n_controls]                                             #initial search value of control for next iteration should be the predicted one for that iteration
 
 			rate.sleep()
+		plt.show()
 
 	except KeyboardInterrupt:
 
