@@ -2,7 +2,7 @@
 from cv2 import transform
 import rospy
 from sensor_msgs.msg import Image
-from std_msgs.msg import Bool,Float64MultiArray
+from std_msgs.msg import Bool,Float64MultiArray, Float64
 from geometry_msgs.msg import Point,PoseStamped, Vector3
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
@@ -28,6 +28,8 @@ center = None
 lane_mask=np.zeros((480,640))
 drone_pose=PoseStamped()
 road_norm=None
+f = 1
+nz = None
 def fit_spline(x,y):
     resolution = 0.1
     path_x=[]
@@ -122,11 +124,16 @@ def bounding_ellipse(mask, center = None):
     return surr
 
 def find_path_with_car():
-    global mask,dep,center, pre_est
+    global mask,dep,center, pre_est, nz
     surr = bounding_ellipse(mask, center)
     norms=find_grad_sobel(dep)
     norms=normalized(norms,axis=2)
-    norms=project_normals(norms)
+    # norms=project_normals(norms)
+    n = getNorm(norms)
+    n = n[:3, :, :]
+    n_mean = np.mean(n[surr==255], axis=0)
+    n_mean /= np.linalg.norm(n_mean)
+    nz = n_mean[2]
     norm_mean = np.mean(norms[surr==255], axis=0)
     norm_mean /= np.linalg.norm(norm_mean)
     pre_est = norm_mean
@@ -234,6 +241,33 @@ def project_normals(norms):
     # new_norms=new_norms.reshape((2,3,3))
     return new_norms
 
+def getNorm(norms):
+    global dep, f, cx, cy
+    x = np.array([[i for i in range(norms.shape[1])] for j in range(norms.shape[0])])
+    y = np.array([[j for i in range(norms.shape[1])] for j in range(norms.shape[0])])
+    dZdx = norms[:, :, 0]
+    dZdy = norms[:, :, 1]
+    dXdx = dep/f + (x - cx)*dZdx/f
+    dYdx = (y - cy)*dZdx/f
+    dXdy = (x - cx)*dZdy/f
+    dYdy = dep/f + (y - cy)*dZdy/f
+    vx = np.array([dXdx, dYdx, dZdx, np.zeros((norms.shape[0], norms.shape[1]))])
+    vy = np.array([dXdy, dYdy, dZdy])
+    global drone_pose
+    # transform_mat=np.eye(4)
+    quaternion = (drone_pose.pose.orientation.x,drone_pose.pose.orientation.y,drone_pose.pose.orientation.z,drone_pose.pose.orientation.w)
+    mat = tf.transformations.quaternion_matrix(quaternion)
+    transform_mat=mat
+    transform_mat[:3,3]=[drone_pose.pose.position.x, drone_pose.pose.position.y, drone_pose.pose.position.z]
+    transform_mat_c_d = np.array(  [[0., -1, 0., 0.],
+                                    [-1., 0., 0., 0.],
+                                    [0., 0., -1., 0.],
+                                    [0., 0., 0., 1.]])
+    v_x = np.matmul(transform_mat, np.matmul(transform_mat_c_d, vx))
+    v_y = np.matmul(transform_mat, np.matmul(transform_mat_c_d, vy))
+    n = np.cross(v_x, v_y)
+    return n
+
 def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel coordinates and returns local 3d coordinates
     # Inputs:
     # cx, cy: Points in Pixel coordinates
@@ -276,7 +310,7 @@ def projection(cx,cy,img,K=None): #takes 2 arrays of dim 1xn of x and y pixel co
     transform_mat[:3,3]=[drone_pose.pose.position.x, drone_pose.pose.position.y, drone_pose.pose.position.z]
     new_vec_p = np.vstack((new_vec, np.ones(new_vec.shape[1])))
     # new_vec_p[:3] = new_vec
-    transform_mat_c_d = np.array([[0., -1, 0., 0.],
+    transform_mat_c_d = np.array(  [[0., -1, 0., 0.],
                                     [-1., 0., 0., 0.],
                                     [0., 0., -1., 0.],
                                     [0., 0., 0., 1.]])
@@ -306,11 +340,9 @@ def publish_traj(pub,cx,cy,name):
     pub.publish(traj)
 
 def publish_norm(pub):
-    vect = Vector3()
-    vect.x = pre_est[0]
-    vect.y = pre_est[1]
-    vect.z = pre_est[2]
-    pub.publish(vect)
+    z = Float64
+    z = nz
+    pub.publish(z)
 
 
 def segmenter():
@@ -323,7 +355,7 @@ def segmenter():
     right_pub=rospy.Publisher('/lane/right',JointTrajectory,queue_size=1)
     mid_pub=rospy.Publisher('/lane/mid',JointTrajectory,queue_size=1)
     mask_pub=rospy.Publisher('/lane/mask',Image,queue_size=1)
-    norm_pub=rospy.Publisher('/lane/norm',Vector3,queue_size=1)
+    norm_pub=rospy.Publisher('/lane/norm',Float64,queue_size=1)
     bridge=CvBridge()
     while not rospy.is_shutdown():
         start_time=time.time()
@@ -345,7 +377,8 @@ def segmenter():
             publish_traj(right_pub,path[2],path[3],"RIGHT")
             publish_traj(mid_pub,path[4],path[5],"MID")
             mask_pub.publish(bridge.cv2_to_imgmsg(lane_mask))
-            publish_norm(norm_pub)
+            if(nz != None):
+                publish_norm(norm_pub)
             # pre_est1=np.array([1., 0., 0.]).reshape((1,1,3))
             # test=np.array([[pre_est, pre_est1, pre_est],
             #                 [pre_est1, pre_est, pre_est1]])
