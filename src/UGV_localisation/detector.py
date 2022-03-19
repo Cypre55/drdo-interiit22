@@ -345,7 +345,6 @@ def calculations():
 #                 cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
 #                 cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
             # cv2.imwrite("car_contour_front.png",image)
-
             # angle = angle * 180 / np.pi
             # x_y_yaw = str(cx) + "," + str(cy) + "," + str(angle)
             # cv2.putText(image, x_y_yaw, (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
