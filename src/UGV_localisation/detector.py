@@ -317,17 +317,11 @@ def calculations():
                 xfront = xtop
                 yfront = ytop
                 # SWAPPED X Y for Projection to work
-                # coord = projection(np.array([ybot, cy, ytop]), np.array([xbot, cx, xtop]), cv_depth, drone_pose)
+                coord = projection(np.array([ybot, cy, ytop]), np.array([xbot, cx, xtop]), cv_depth, drone_pose)
                 # coord = projection(np.array([xtop]), np.array([ytop]), cv_depth, drone_pose)
-<<<<<<< HEAD
                 cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
                 cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
                 cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
-=======
-                # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-                # cv2.circle(image,(int(xbot),int(ybot)),7,(255,0,0),-1)
-                # cv2.circle(image,(int(xtop),int(ytop)),7,(0,255,255),-1)
->>>>>>> 410fa87a32dd5576e8e61954c9ac9455749fb883
             else:
                 # cv2.line(image, (int(xbot), int(ybot)), (int(cx), int(cy)), (0, 0, 255), 3)
 
@@ -339,7 +333,6 @@ def calculations():
                 xfront = xbot
                 yfront = ybot
                 # SWAPPED X Y for Projection to work
-<<<<<<< HEAD
                 coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
                 
                 # coord = projection(np.array([xbot]), np.array([ybot]), cv_depth, drone_pose)
@@ -347,18 +340,6 @@ def calculations():
                 cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
                 cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
             # cv2.imwrite("car_contour_front.png",image)
-=======
-                # coord = projection(np.array([ytop, cy, ybot]), np.array([xtop, cx, xbot]), cv_depth, drone_pose)
-                # coord = projection(np.array([xbot]), np.array([ybot]), cv_depth, drone_pose)
-                # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
-                # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
-                # cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
-            coord = projection(np.array([yfront, cy, yback]), np.array([xfront, cx, xback]), cv_depth, drone_pose)
-
-            # cv2.circle(image,(int(xfront),int(yfront)),7,(255,0,0),-1)
-            # cv2.imshow("image",image)
-            # cv2.waitKey(0)
->>>>>>> 410fa87a32dd5576e8e61954c9ac9455749fb883
             # angle = angle * 180 / np.pi
             # x_y_yaw = str(cx) + "," + str(cy) + "," + str(angle)
             # cv2.putText(image, x_y_yaw, (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
@@ -410,16 +391,16 @@ def calculations():
                     # print(xdata)
                     dT = header_im2.stamp.to_sec()-time[-1]
                     dT = max(dT, 1e-3)
-                    print("DT: ", dT)
+                    # print("DT: ", dT)
                     vel_x = (coord[0,2] - xdata[-1])/(dT)
                     vel_y = (coord[1,2] - ydata[-1])/(dT)
                     vel_z = (coord[2,2] - zdata[-1])/(dT)
-                    print("VEL at correct case", vel_x, vel_y)
+                    # print("VEL at correct case", vel_x, vel_y)
                 else:
                     vel_x=0
                     vel_y=0
                     vel_z=0
-                    print("VEL at 0 case", vel_x, vel_y)
+                    # print("VEL at 0 case", vel_x, vel_y)
 
                 # dist_temp = (xdata[-1]-coord_back[0])**2 + (ydata[-1]-coord_back[1])**2 + (zdata[-1]-coord_back[2])
 

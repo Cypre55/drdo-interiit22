@@ -40,5 +40,8 @@
       <!-- Launching Rviz with 4 images-->
       <node name="rviz" pkg="rviz" type="rviz" args="-d $(find drdo_interiit22)/rviz/myConfg.rviz"/>
 
+      <node name="segmentation" pkg="drdo_interiit22" type="segmentation.py" />
+      <node name="detector" pkg="drdo_interiit22" type="detector.py" />
+
 
   </launch>

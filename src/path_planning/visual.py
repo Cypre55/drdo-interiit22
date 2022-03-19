@@ -58,7 +58,7 @@ def output_cb(data):
     # Set the color
     marker.color.r = 0.0
     marker.color.g = 1.0
-    marker.color.b = 1.0
+    marker.color.b = 0.0
     marker.color.a = 1.0
 
     p = Point()

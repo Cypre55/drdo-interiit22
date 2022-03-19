@@ -39,10 +39,10 @@ def fit_spline(x,y,xx=10):
     factor = 1
     x = np.array(path_x)
     try:
-        tck = interpolate.splrep(t, x, s = smallS, k = 5)
+        tck = interpolate.splrep(t, x, s = smallS, k = 3)
         x_new = interpolate.splev(t, tck, der=0)
         y = np.array(path_y)
-        tck = interpolate.splrep(t, y, s = smallS, k = 5)
+        tck = interpolate.splrep(t, y, s = smallS, k = 3)
         y_new = interpolate.splev(t, tck, der=0)
         distance = np.cumsum(np.sqrt( np.ediff1d(x_new, to_begin=0)**2 + np.ediff1d(y_new, to_begin=0)**2 ))
         n_points=50
@@ -160,7 +160,7 @@ def find_path_without_car(dep):
     norms=find_grad_sobel(dep)
     norms=normalized(norms,axis=2)
     dp=np.sum(norms*pre_est,axis=2)
-    lane=dp>0.99
+    lane=dp>0.995
     lane=binary_erosion(lane,disk(5))
     lane=np.uint8(lane)
     (numLabels, labels, stats, centroids)=cv.connectedComponentsWithStats(lane,4)
