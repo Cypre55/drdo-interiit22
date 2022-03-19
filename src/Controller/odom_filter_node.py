@@ -58,7 +58,7 @@ vy_predictions = []
 
 
 def odomfunc(odom):
-	global x,y,Vx,Vy,theta
+	global x,y,Vx,Vy,theta,car_near_centre
 	# print ("OK")
 	
 	x = odom.car_state.pose.pose.position.x
@@ -69,6 +69,7 @@ def odomfunc(odom):
 	Vx = odom.car_state.twist.twist.linear.x
 	Vy = odom.car_state.twist.twist.linear.y
 
+	car_near_centre = odom.isCarNinety.data
  
 
 
@@ -85,7 +86,7 @@ def my_mainfunc():
 	rate = rospy.Rate(10)
 	rate.sleep()
 
-	global x,y,Vx,Vy,theta
+	global x,y,Vx,Vy,theta,car_near_centre
 	x_predictions = []
 	y_predictions = []
 	x_ar = []
@@ -126,7 +127,8 @@ def my_mainfunc():
 			x_pred  = x
 			y_pred  = y
 
-	
+		pubMsg.isCarNinety.data = car_near_centre
+
 		pubMsg.car_state.pose.pose.position.x = x_pred
 		pubMsg.car_state.pose.pose.position.y = y_pred
 		pubMsg.car_state.twist.twist.linear.x = vx_pred
