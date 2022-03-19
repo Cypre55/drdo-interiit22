@@ -47,7 +47,7 @@ Q_V = 1000#1000000
 Q_theta = 1000#200 
 
 R1 = 1e+8	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
-R2 = 1e+7#10000
+R2 = 1e+5#1e+7#10000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
 
@@ -386,7 +386,7 @@ def my_mainfunc():
 
 	try:
 		while ( ca.norm_2( P[0:n_states-1].reshape((n_states-1,1)) - X_target[0:n_states-1] ) > error_allowed  ) :                                                                                         
-			predict_velocity
+			
 			args = {
 					'lbx':lbx,
 					'lbg':lbg,	    

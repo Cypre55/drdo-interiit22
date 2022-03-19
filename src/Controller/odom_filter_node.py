@@ -15,7 +15,7 @@ last_pose=[]
 
 
 def predict_velocity(last_pose):
-	# global deque_xposes, deque_yposes
+	global deque_xposes, deque_yposes
 
 	if(len(last_pose) < 10):
 		return None, None,None, None
@@ -24,12 +24,12 @@ def predict_velocity(last_pose):
 		last_pose = np.array(last_pose)
 		x_poses = last_pose[-deque_size:][:,0]
 		y_poses = last_pose[-deque_size:][:,1]
-		print(x_poses)
+		# print(x_poses)
 		t = 0.1 * np.linspace(0, deque_size, deque_size)								#0.04 is the timestep
 
-		smallS = 1000
-		print(t.shape, len(x_poses))
-		time.sleep(1)
+		smallS = 1e+18#100000
+		# print(t.shape, len(x_poses))
+		# time.sleep(1)
 		tck = interpolate.splrep(t, x_poses, s = smallS, k = 5)
 		x_new = interpolate.splev(t, tck, der=0)								#der 1 gives derivative				
 		x_new_vel = interpolate.splev(t, tck, der=1)								#der 1 gives derivative				
@@ -41,11 +41,18 @@ def predict_velocity(last_pose):
 
 		# plt.clf()
 		# plt.plot(x_poses,y_poses)
-		# plt.plot(x_new_vels,y_new_vels)
+		# plt.plot(x_new,y_new)
 		# plt.pause(0.001)
 
-		return  x_new[-1], y_new[-1],x_new_vel[-1], y_new_vel[-1]
+		# return  x_new[-1], y_new[-1],x_new_vel[-1], y_new_vel[-1]
+		# return  x_new[-5], y_new[-5],x_new_vel[-5], y_new_vel[-5]
+
+		return  np.average(x_new[-10:]), np.average(y_new[-10:]), np.average(x_new_vel[-10:]), np.average(x_new_vel[-10:])
+		# return  np.average(x_poses[-10:]), np.average(y_poses[-10:]), np.average(x_new_vel[-10:]), np.average(x_new_vel[-10:])
 	
+
+
+
 vx_predictions = []
 vy_predictions = []
 
@@ -89,12 +96,18 @@ def my_mainfunc():
 	Vy_ar = []
 	last_pose = []
 
+	position = np.array([x,y])
 	
 	while not rospy.is_shutdown():
 
-		position = np.array([x,y])
+		if x != 0 and y != 0:
+			position = np.array([x,y])
+		
+			
+
 		last_pose.append(position)
 		x_pred,y_pred,vx_pred, vy_pred = predict_velocity(last_pose)
+		# x_pred,y_pred,vx_pred, vy_pred = 0.0, 0.0, 0.0, 0.0
 		
 		
 		x_predictions.append(x_pred)
@@ -120,15 +133,15 @@ def my_mainfunc():
 		pubMsg.car_state.twist.twist.linear.y = vy_pred
 		# times = np.arange(0,len(vx_predictions),0.04)
 		
-		times = np.linspace(0, len(vx_predictions)**0.1, len(vx_predictions))	
+		# times = np.linspace(0, len(vx_predictions)**0.1, len(vx_predictions))	
 		
-		plt.clf()
-		plt.plot(times, x_ar,color = 'r', alpha = 0.5)
-		plt.plot(times, y_ar,color = 'g',alpha = 0.5)
-		plt.plot(times, x_predictions,color = 'r',alpha = 1, linewidth=2)
-		plt.plot(times, y_predictions,color = 'g',alpha = 1, linewidth=2)
-		plt.grid()
-		plt.pause(0.001)
+		# plt.clf()
+		# plt.plot(times, x_ar,color = 'r', alpha = 0.5)
+		# plt.plot(times, y_ar,color = 'g',alpha = 0.5)
+		# plt.plot(times, x_predictions,color = 'r',alpha = 1, linewidth=2)
+		# plt.plot(times, y_predictions,color = 'g',alpha = 1, linewidth=2)
+		# plt.grid()
+		# plt.pause(0.001)
 
 		instance.publish(pubMsg)
 		rate.sleep()
