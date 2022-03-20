@@ -14,7 +14,7 @@ from scipy.interpolate import interp1d
 
 from scipy.spatial import KDTree
 
-indexes_ahead = 50
+indexes_ahead = 20
 positions = np.array([0.0,0.0,0.0])
 positions_new = np.array([0.0,0.0,0.0])
 prev_positions = np.array([0.0,0.0,0.0])
