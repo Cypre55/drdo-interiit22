@@ -15,10 +15,10 @@ last_pose=[]
 
 
 def predict_velocity(last_pose):
-	global deque_xposes, deque_yposes
+	global deque_xposes, deque_yposes,x,y,Vx,Vy
 
 	if(len(last_pose) < 10):
-		return None, None,None, None
+		return x, y,Vx,Vy
 	else:
 		deque_size = 10
 		last_pose = np.array(last_pose)
@@ -99,56 +99,60 @@ def my_mainfunc():
 
 	position = np.array([x,y])
 	
-	while not rospy.is_shutdown():
+	try:
+		while not rospy.is_shutdown():
 
-		if x != 0 and y != 0:
-			position = np.array([x,y])
-		
+			if x != 0 and y != 0:
+				position = np.array([x,y])
+			
+				
+
+			last_pose.append(position)
+			x_pred,y_pred,vx_pred, vy_pred = predict_velocity(last_pose)
+			# x_pred,y_pred,vx_pred, vy_pred = 0.0, 0.0, 0.0, 0.0
+			
+			
+			x_predictions.append(x_pred)
+			y_predictions.append(y_pred)
+			x_ar.append(x)
+			y_ar.append(y)
+			vx_predictions.append(vx_pred)
+			vy_predictions.append(vy_pred)
+			Vx_ar.append(Vx)
+			Vy_ar.append(Vy)
+
+			# if vx_pred is not None:
+			# 	V = math.sqrt(vx_pred**2 + vy_pred**2)
+
+			
+			pubMsg.isCarNinety.data = car_near_centre
+
+			pubMsg.car_state.pose.pose.position.x = x_pred
+			pubMsg.car_state.pose.pose.position.y = y_pred
+			pubMsg.car_state.twist.twist.linear.x = vx_pred
+			pubMsg.car_state.twist.twist.linear.y = vy_pred
+			# times = np.arange(0,len(vx_predictions),0.04)
+			
+			# times = np.linspace(0, len(vx_predictions)**0.1, len(vx_predictions))	
+			
+			# plt.clf()
+			# plt.plot(times, x_ar,color = 'r', alpha = 0.5)
+			# plt.plot(times, y_ar,color = 'g',alpha = 0.5)
+			# plt.plot(times, x_predictions,color = 'r',alpha = 1, linewidth=2)
+			# plt.plot(times, y_predictions,color = 'g',alpha = 1, linewidth=2)
+			# plt.plot(x_ar,y_ar, alpha = 0.5)
+			# plt.plot(x_predictions,y_predictions, alpha = 1,linewidth=2)
+
+			# plt.grid()
 			
 
-		last_pose.append(position)
-		x_pred,y_pred,vx_pred, vy_pred = predict_velocity(last_pose)
-		# x_pred,y_pred,vx_pred, vy_pred = 0.0, 0.0, 0.0, 0.0
-		
-		
-		x_predictions.append(x_pred)
-		y_predictions.append(y_pred)
-		x_ar.append(x)
-		y_ar.append(y)
-		vx_predictions.append(vx_pred)
-		vy_predictions.append(vy_pred)
-		Vx_ar.append(Vx)
-		Vy_ar.append(Vy)
+			instance.publish(pubMsg)
+			rate.sleep()
+		# plt.show()                                                                                 #rate.sleep() to run odomfunc once
 
-		if vx_pred is not None:
-			V = math.sqrt(vx_pred**2 + vy_pred**2)
-
-		else:
-			x_pred  = x
-			y_pred  = y
-
-		pubMsg.isCarNinety.data = car_near_centre
-
-		pubMsg.car_state.pose.pose.position.x = x_pred
-		pubMsg.car_state.pose.pose.position.y = y_pred
-		pubMsg.car_state.twist.twist.linear.x = vx_pred
-		pubMsg.car_state.twist.twist.linear.y = vy_pred
-		# times = np.arange(0,len(vx_predictions),0.04)
-		
-		# times = np.linspace(0, len(vx_predictions)**0.1, len(vx_predictions))	
-		
-		# plt.clf()
-		# plt.plot(times, x_ar,color = 'r', alpha = 0.5)
-		# plt.plot(times, y_ar,color = 'g',alpha = 0.5)
-		# plt.plot(times, x_predictions,color = 'r',alpha = 1, linewidth=2)
-		# plt.plot(times, y_predictions,color = 'g',alpha = 1, linewidth=2)
-		# plt.grid()
-		# plt.pause(0.001)
-
-		instance.publish(pubMsg)
-		rate.sleep()
-	plt.show()                                                                                 #rate.sleep() to run odomfunc once
-
+	except KeyboardInterrupt:
+		print('closing')
+		# plt.pause(1000)
 
 if __name__ == '__main__':
 

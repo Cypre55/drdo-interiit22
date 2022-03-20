@@ -38,18 +38,19 @@ n_controls = 2
 N =67#73                                                                           # Prediction horizon(same as control horizon)
 error_allowed = 0.1
 U_ref = np.array([0,0], dtype ='f')                                             # U_ref contains referance acc and steer
-V_ref = 0.00001#0.3#6#10                                                                      # referance velocity 
+V_ref = 0.1#0.3#6#10                                                                      # referance velocity 
 
 
-Q_x = 250000#3000                                                                      # gains to control error in x,y,V,theta during motion
+Q_x = 250000#3000                                                                      # gains to control error in x,y,V,theta during motion                                                                       
 Q_y = 250000#3000 
-Q_V = 1000#1000000                                                                          
-Q_theta = 1000#200 
-
-R1 = 1e+18#1e+8	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
-R2 = 1e+8#1e+7#10000
+Q_V = 1000#1000000   
+Q_theta = 1000#200
+ 
+R1 = 5*1e+4	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
+R2 = 1e+9
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
+
 
 
 
@@ -159,7 +160,13 @@ def pathfunc():
 			# total_path_points = len(Path.poses)
 			# total_path_points = len(path_x)
 			# path = np.load("/home/satwik/catkin_ws/src/drdo-interiit22/graph_nodes.npy")
+			
 			path = np.load("ugv_waypoints.npy")
+
+			# path = np.load("path_world1_local_coord.npy")
+			# path = (path.T)[:,0:2]
+
+
 			total_path_points = (path[:,0]).size
 
 			path = equidist_path(path,total_path_points)
@@ -241,6 +248,11 @@ def my_mainfunc():
 
 
 	path = np.load("ugv_waypoints.npy")
+
+	# path = np.load("path_world1_local_coord.npy")
+	# path = (path.T)[:,0:2]
+
+
 	total_path_points = (path[:,0]).size
 
 	path = equidist_path(path,total_path_points)
@@ -441,7 +453,7 @@ def my_mainfunc():
 
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
-			print(round(x,2),round(y,2),round(V,2),"   ", throttle )
+			print(round(x,2),round(y,2),round(V,2),"   ", throttle, steer_input )
 			cross_track_error.append(KDTree(path).query(np.array([x,y]))[0])
 
 			P[0:n_states] = [x,y,V,theta] 

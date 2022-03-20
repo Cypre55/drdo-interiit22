@@ -551,6 +551,7 @@ def calculations():
                 # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
                 # cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
             if cx>32 and cx<608 and cy>24 and cy<456:
+            # if cx>192 and cx<448 and cy>144 and cy<336:
                 pubMsg.isCarNinety.data = True
 
 
