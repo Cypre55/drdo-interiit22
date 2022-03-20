@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   prius_msgs
 )
 
+find_package(OpenCV REQUIRED)
+
 add_message_files(
   FILES
   customMessage.msg
@@ -27,7 +29,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES interiit22-drdo
- CATKIN_DEPENDS roscpp rospy std_msgs message_runtime 
+ CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
 #  DEPENDS system_lib
 )
 
@@ -35,11 +37,11 @@ include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
 )
+add_executable(control2 control2.cpp)
 
-add_executable(init_drone src/path_planning/init_drone.cpp)
-
-target_link_libraries(init_drone
+target_link_libraries(control2
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 add_executable(car_control src/UGV_localisation/control2_path_generation.cpp)

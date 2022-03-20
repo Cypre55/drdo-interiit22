@@ -11,7 +11,7 @@
       </include>
       <!-- vim: set ft=xml noet : -->
       <!-- Experimental launch script for APM based Drone -->
-  
+
       <arg name="fcu_url" default="udp://127.0.0.1:14551@14555" />
       <arg name="gcs_url" default="" />
       <arg name="tgt_system" default="1" />
@@ -19,7 +19,7 @@
       <arg name="log_output" default="screen" />
       <arg name="respawn_mavros" default="true"/>
       <arg name="mavros_ns" default="/"/>
-  
+
       <include file="$(find interiit22)/launch/mavros_node.launch">
           <arg name="pluginlists_yaml" value="$(find mavros)/launch/apm_pluginlists.yaml" />
           <arg name="config_yaml" value="$(find mavros)/launch/apm_config.yaml" />
