@@ -14,20 +14,20 @@ import time
 # Constants
 # TODO:
 # Starts when took_off
-# Only forward
 # Start, End Condition
 
 UAV_HEIGHT = 18.0
 PI = 3.1415
 REACH_THRESHOLD = 0.5
+VISITED_RADIUS = 1.8
 NEW_WP_RESOLUTION = 5
 DEQUE_SIZE = 4
 
 
 class Node():
     def __init__(self, uav, ugv, index):
-        self.UGV = ugv
-        self.UAV = uav
+        self.UGV = ugv # Pose()
+        self.UAV = uav # Pose()
 
         self.parent = -1
         self.index = index
@@ -76,6 +76,9 @@ def getYawFromSpline():
     else:
         yaw = other_yaw
 
+    # if (abs(current_yaw - yaw) < np.pi/4):
+    #     yaw = current_yaw
+
     quaternion = tf.transformations.quaternion_from_euler(0, 0, yaw)
 
     return quaternion
@@ -109,8 +112,24 @@ def print_graph():
         print("X: ", node.UAV.position.x)
         print("Y: ", node.UAV.position.y)
 
+def in_prev_buffer(point):
+    point_xy = point[:2]
+    for node in graph.arr:
+        node_xy = np.array([node.UAV.position.x, node.UGV.position.y])
+        dist = np.linalg.norm(node_xy - point_xy)
+        if (dist < VISITED_RADIUS):
+            print("In Prev Buff :(:):(")
+            return True
+    return False
+
 def add_node_to_graph(point):
     global reaching_flag
+
+    if in_prev_buffer(point):
+        point[0] = 2*graph.arr[graph.current].UAV.position.x - graph.arr[graph.last_nodes[-2]].UAV.position.x
+        point[1] = 2*graph.arr[graph.current].UAV.position.y - graph.arr[graph.last_nodes[-2]].UAV.position.y 
+        print("Forcfully moving forward")
+        return
 
     uav = Pose()
     ugv = Pose()
@@ -135,16 +154,16 @@ def add_node_to_graph(point):
         while (len(graph.last_nodes) != DEQUE_SIZE):
             graph.last_nodes.pop(0)
 
-    # if (len(graph.last_nodes) == DEQUE_SIZE):
-    # 	quat = getYawFromSpline()
-    # 	graph.arr[graph.current].UAV.orientation.x = quat[0]
-    # 	graph.arr[graph.current].UAV.orientation.y = quat[1]
-    # 	graph.arr[graph.current].UAV.orientation.z = quat[2]
-    # 	graph.arr[graph.current].UAV.orientation.w = quat[3]
-    # 	graph.arr[graph.currient].UGV.orientation.x = quat[0]
-    # 	graph.arr[graph.current].UGV.orientation.y = quat[1]
-    # 	graph.arr[graph.current].UGV.orientation.z = quat[2]
-    # 	graph.arr[graph.current].UGV.orientation.w = quat[3]
+    if (len(graph.last_nodes) == DEQUE_SIZE):
+    	quat = getYawFromSpline()
+    	graph.arr[graph.current].UAV.orientation.x = quat[0]
+    	graph.arr[graph.current].UAV.orientation.y = quat[1]
+    	graph.arr[graph.current].UAV.orientation.z = quat[2]
+    	graph.arr[graph.current].UAV.orientation.w = quat[3]
+    	graph.arr[graph.current].UGV.orientation.x = quat[0]
+    	graph.arr[graph.current].UGV.orientation.y = quat[1]
+    	graph.arr[graph.current].UGV.orientation.z = quat[2]
+    	graph.arr[graph.current].UGV.orientation.w = quat[3]
 
     
     with open('ugv_waypoints.npy', 'wb') as f:
@@ -214,6 +233,23 @@ def check_spline_pts(car_front_, car_back_, right_bound, left_bound, ref_point):
     
     return next_graph_pt
 
+def backtrack_graph():
+    global reaching_flag
+    # if reaching_flag == True:
+    #     return
+
+    print("Backtracking |!~!|")
+    uav_wp.pose = graph.arr[graph.last_nodes[-2]].UAV
+    uav_wp_pub.publish(uav_wp)
+    reaching_flag = True
+
+    
+    # graph.arr.pop(0)
+    # # if graph.current != -1:
+    # #     graph.arr[graph.last_nodes[-2]].children.remove(graph.current)
+    # graph.last_nodes.pop(0)
+    # graph.current = graph.last_nodes[-1]
+
 
 def build_graph():
     global direction, car_vect, flag
@@ -239,9 +275,9 @@ def build_graph():
     if reaching_flag == True:
         return
 
-    plt.clf()
-    plt.scatter(current_uav_xyz[0, 0], current_uav_xyz[0, 1])
-    plt.plot(joint_traj[:, 0], joint_traj[:, 1])
+    # plt.clf()
+    # plt.scatter(current_uav_xyz[0, 0], current_uav_xyz[0, 1])
+    # plt.plot(joint_traj[:, 0], joint_traj[:, 1])
 
     # print("In Build")
     graph_current_xy = np.array([graph.arr[graph.current].UAV.position.x, graph.arr[graph.current].UAV.position.y])
@@ -340,7 +376,7 @@ def build_graph():
         return
 
     elif len(graph.last_nodes) >=2:
-        print("Using dot checcking cont.")
+        print("Using dot checking cont.")
 
         prev_node = np.array([graph.arr[graph.last_nodes[-1]].UAV.position.x, graph.arr[graph.last_nodes[-1]].UAV.position.y])
         prev_2_node = np.array([graph.arr[graph.last_nodes[-2]].UAV.position.x, graph.arr[graph.last_nodes[-2]].UAV.position.y])
@@ -349,18 +385,20 @@ def build_graph():
 
         if next_graph_pt is not None:
             add_node_to_graph(next_graph_pt)
+        else:
+            backtrack_graph()
 
     else:
         print("Car not visible in frame. !!")
 
     # plt.scatter(joint_traj[ind_chosen][0], joint_traj[ind_chosen][1], color='b', alpha=0.7, linewidth = 10)
-    plt.scatter(joint_traj[right_bound][0], joint_traj[right_bound][1], color = 'g', alpha=1)
-    plt.scatter(joint_traj[left_bound][0], joint_traj[left_bound][1], color = 'r', alpha = 1)
+    # plt.scatter(joint_traj[right_bound][0], joint_traj[right_bound][1], color = 'g', alpha=1)
+    # plt.scatter(joint_traj[left_bound][0], joint_traj[left_bound][1], color = 'r', alpha = 1)
     
-    plt.scatter(joint_traj[index_drn][0], joint_traj[index_drn][1], color = 'k', alpha = 0.5, linewidth = 5)
+    # plt.scatter(joint_traj[index_drn][0], joint_traj[index_drn][1], color = 'k', alpha = 0.5, linewidth = 5)
 
 
-    plt.pause(0.003)
+    # plt.pause(0.003)
 
     # if flag == True:
     #     # plt.show()
