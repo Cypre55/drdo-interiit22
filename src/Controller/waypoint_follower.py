@@ -18,7 +18,7 @@ positions = np.array([0.0,0.0,0.0])
 pos_drones = np.array([0.0,0.0,0.0])
 prev_positions = np.array([0.0,0.0,0.0])
 
-metres_ahead = 3.0
+metres_ahead = 4.0
 
 def equidist_path(path,total_path_points):
 	resolution = 0.1
@@ -119,7 +119,7 @@ def main():
 		# 	prev_positions = copy.deepcopy(positions)
 		#if drone behind car and distance>7m, set new wp = car_closest point on path+70 indexes
 
-		print("CAR_pos) : ",positions[0],positions[1])
+		# print("CAR_pos) : ",positions[0],positions[1])
 		positions_copy_0 = copy.deepcopy(positions[0])
 		positions_copy_1 = copy.deepcopy(positions[1])
 		pos_drones_copy_0 = copy.deepcopy(pos_drones[0])
@@ -140,7 +140,7 @@ def main():
 		# 	# print("ELSE")
 		# 	prev_positions = positions.copy()
 
-		print("CAR_pos_1",positions[0],positions[1])
+		# print("CAR_pos_1",positions[0],positions[1])
 		
 		# print("index_drone", index_drone)
 		# print("index_car", index_car)
@@ -152,20 +152,15 @@ def main():
 
 		if (index_drone <index_car) and (distance>(metres_ahead-0.2)):
 			flag_move_drone = 1
-			msg.pose.position.x,msg.pose.position.y,msg.pose.position.z = (path[int(index_car+metres_ahead*12)][0]), (path[int(index_car+metres_ahead*12)][1]), (positions[2]+18) 
-			# print("CAR_pos_3 : ",positions[0],positions[1])
-			# while (index_drone < index_car or np.abs((np.sqrt((positions[0]-pos_drones[0])**2+(positions[1]-pos_drones[1])**2))-4)<0.5):
-			# 	print("Going Ahead")
-			# 	print("positions", )
-			# 	rate.sleep()
-			# 	# rospy.spin()
-			# 	pub1.publish(msg)
+			msg.pose.position.x,msg.pose.position.y,msg.pose.position.z = (path[int(index_car+metres_ahead*11)][0]), (path[int(index_car+metres_ahead*11)][1]), (positions[2]+18) 
+
 
 		if flag_move_drone == 1:
 			pub1.publish(msg)
+			print("Moving to new waypoint",msg.pose.position.x,msg.pose.position.y,msg.pose.position.z)
 			# print("moving to",msg.pose.position.x,msg.pose.position.y)
 			# print("cur_pos",pos_drones[0],pos_drones[1])
-			print("CAR_pos_4 : ",positions[0],positions[1])
+			# print("CAR_pos_4 : ",positions[0],positions[1])
 			# print("Live dist : ",np.sqrt((positions[0]-pos_drones[0])**2+(positions[1]-pos_drones[1])**2))
 			if (index_drone>index_car) and (np.abs((np.sqrt((positions[0]-pos_drones[0])**2+(positions[1]-pos_drones[1])**2))-metres_ahead)<0.2):
 				print("WP follower : dist : ",(np.sqrt((positions[0]-pos_drones[0])**2+(positions[1]-pos_drones[1])**2)))

@@ -32,7 +32,7 @@ cross_track_error = []
 n_states = 4                                                                    
 n_controls = 2
 
-metres_ahead = 3.0
+metres_ahead = 4.0
 
 
 N =67#73                                                                           # Prediction horizon(same as control horizon)
@@ -46,16 +46,16 @@ V_ref = 0.3#6#10                                                                
 # Q_V = 1000#1000000                                                                          
 # Q_theta = 1000#200 
 
-Q_x = 25000#3000                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 25000#3000 
+Q_x = 15000#3000                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 15000#3000 
 Q_V = 100#1000000                                                                          
-Q_theta = 2000#200 
+Q_theta = 200#200 
 
 # R1 = 1e+10	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
 # R2 = 1e+7#10000
 
 R1 = 4*1e+9
-R2 = 3*1e+5
+R2 = 2*1e+5
 # R1 = 50000
 # R2 = 65000
 
@@ -118,7 +118,7 @@ def equidist_path(path,total_path_points):
 	resolution = 0.1
 	t = np.linspace(0, total_path_points, total_path_points)/ 50
 
-	smallS = 10000
+	smallS = 7000
 	
 	factor = 10
 	t_new = np.linspace(0, total_path_points*factor, total_path_points*factor)/ (50*factor)
@@ -181,6 +181,7 @@ def pathfunc():
 			# total_path_points = len(path_x)
 			# path = np.load("/home/satwik/catkin_ws/src/drdo-interiit22/graph_nodes.npy")
 			path = np.load("Full_World1_RUN.npy")
+			path = path[250:]
 			total_path_points = (path[:,0]).size
 
 			path = equidist_path(path,total_path_points)
@@ -197,15 +198,18 @@ def pathfunc():
 		# path[i][0] = path_x[i] 
 		# path[i][1] = path_y[i]	   	
 
-
+first = 0
 
 def odomfunc(odom):
 	
 	global x,y,V,theta,is_ninety,x_prev,y_prev,V_prev,theta_prev
+	global first
 
 	x = odom.car_state.pose.pose.position.x
 	y = odom.car_state.pose.pose.position.y
 	is_ninety = odom.isCarNinety.data
+
+	# theta_prev1 = theta
 
 	quaternions =  odom.car_state.pose.pose.orientation
 
@@ -214,12 +218,14 @@ def odomfunc(odom):
 	quaternions_list = [quaternions.x,quaternions.y,quaternions.z,quaternions.w]
 	roll,pitch,yaw = euler_from_quaternion(quaternions_list)
 	theta = yaw
+
 	if np.abs(x)<0.001:
 		# print("PREV", x)
 		x,y,V,theta = x_prev, y_prev,V_prev,theta_prev
 		# print("AFTER",x)  
 	else:
-		x_prev,y_prev,V_prev,theta_prev = x,y,V, theta_prev     
+		x_prev,y_prev,V_prev,theta_prev = x,y,V, theta_prev  
+  
 	if np.abs(V)<0.001:
 		# print("PREV", x)
 		V = V_prev  
@@ -232,7 +238,9 @@ def odomfunc(odom):
 		# print("AFTER",x)  
 	else:
 		theta_prev = theta
-	# theta = np.pi+yaw
+	if (abs(theta - theta_prev) > 0.3):
+		theta = theta_prev
+
 
 
 
@@ -269,12 +277,12 @@ def my_mainfunc():
 	# pathfunc()
 
 	instance = rospy.Publisher('prius', Control, queue_size=10)
-
+	pub1 = rospy.Publisher("uav_wp", PoseStamped, queue_size=1000000) 
 	rate = rospy.Rate(10)
 	rate.sleep()                                                                                 #rate.sleep() to run odomfunc once 
 
 	msg = Control()
-
+	drone_msg = PoseStamped()
 	path_resolution =  ca.norm_2(path[0,0:2] - path[1,0:2])                                                                                        
 	global delta_T                                                                               #timestamp bw two predictions                                                                                                                  
 	delta_T = ( path_resolution / ((V_ref)) )/10                                                                                                                                                                                                           
@@ -462,14 +470,14 @@ def my_mainfunc():
 			# 	msg.shift_gears =2
 			
 			# if delta_z 
-			if V>3.5:
+			if V>7.5:
 				msg.brake  = 0.35
 
 			# if not (is_ninety):
-			# 	brake_vals +=1
+			# 	# brake_vals +=1
 			# 	# if brake_vals ==4:
-			# 	print("Waiting for the drone")
-			# 	msg.brake = 1
+			# 	print("90_perc brake")
+			# 	msg.brake = 0.4
 			# 		# brake_vals = 0
 
 			x_copy1 = copy.deepcopy(x)
@@ -512,9 +520,9 @@ def my_mainfunc():
 			# 		print("Turning off flag")
 			# 		flag_drone_wait = 0
 
-			
+			"""
 			global metres_ahead
-			if (index_drone < close_index) and (np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)>(metres_ahead-0.2)):
+			if (index_drone < close_index) and (np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)>(metres_ahead-0.4)):
 				flag_drone_wait = 1
 				# print("Waiting for the drone")
 				# while (index_drone < close_index or np.abs((np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2))-4)<0.5):
@@ -534,13 +542,31 @@ def my_mainfunc():
 				msg.brake = 1
 				msg.throttle = 0
 				# instance.publish(msg)
-				if (index_drone>close_index) and (np.abs(np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)-metres_ahead)<0.2):
+				if (index_drone>close_index) and (np.abs(np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)-metres_ahead)<0.3):
 					print("Turning off flag")
 					flag_drone_wait = 0
+			"""
 
+			#MOVE DRONE
+			if (index_drone<close_index) and not (is_ninety):
+				# print("MOVING DRONE")
+
+				drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z = (path[int(close_index+40)][0]), (path[int(close_index+40)][1]),20 #TILL CAR
+				print("drone moving to",drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z)
+			if (index_drone<close_index) and not (is_ninety):
+				print("WAITING for drone")
+				msg.brake = 1
+				msg.throttle = 0
+
+			# if (index_drone>close_index) and not (is_ninety):
+
+
+
+
+			pub1.publish(drone_msg)
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
-			# print(x,y,V)
+			print(x,y,V,theta)
 
 			x_copy = copy.deepcopy(x)
 			y_copy = copy.deepcopy(y)
@@ -549,14 +575,24 @@ def my_mainfunc():
 			# print("x,y after : ",x,y)
 
 			P[0:n_states] = [x,y,V,theta] 
-			print("Yaw : ",theta)
+			# print("Yaw : ",theta)
 			arrow_size = 40
-			plt.clf()
-			plt.xlim(-100,400)
-			plt.ylim(-100,400)
-			plt.plot(path[:,0],path[:,1])
-			plt.arrow(x,y,x + arrow_size*math.cos(theta),y+arrow_size*math.sin(theta))
-			plt.pause(0.0001)
+			# plt.clf()
+
+			# plt.Circle((x,y),(metres_ahead-0.3))
+			# plt.Circle((x,y),(metres_ahead+0.3))
+			# plt.scatter(pos_drones[0],pos_drones[1])
+			# plt.axes.set_aspect("equal")
+
+			# fig, ax = plt.subplots()
+			# ax.add_patch(c1)
+			# ax.add_patch(c2)
+
+			# plt.xlim(-100,400)
+			# plt.ylim(-100,400)
+			# plt.plot(path[:,0],path[:,1])
+			# plt.arrow(x,y,x + arrow_size*math.cos(theta),y+arrow_size*math.sin(theta), head_width = 7, head_length = 7)
+			# plt.pause(0.0001)
 			if N+(close_index) < total_path_points :                                                                                # Updating P for next N path points and next N reference controls
 				P[n_states:n_states*(N+1):n_states] = path[close_index:N+close_index,0] 
 				P[n_states+1:n_states*(N+1):n_states] = path[close_index:N+close_index,1]
