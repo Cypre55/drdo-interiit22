@@ -9,8 +9,8 @@ import numpy as np
 import math   
 from scipy.spatial import KDTree
 from geometry_msgs.msg import Point,PoseStamped, Vector3
-from tf.transformations import euler_from_quaternion 
-from trajectory_msgs.msg import JointTrajectory
+from tf.transformations import euler_from_quaternion
+import copy 
 
 from drdo_interiit22.msg import customMessage
 
@@ -27,17 +27,15 @@ inf = np.inf
 
 cross_track_error = []
 
-
-
-
 """# variable parameters 
 """
 n_states = 4                                                                    
 n_controls = 2
 
+metres_ahead = 3.0
 
 
-N =8#73                                                                           # Prediction horizon(same as control horizon)
+N =67#73                                                                           # Prediction horizon(same as control horizon)
 error_allowed = 0.1
 U_ref = np.array([0,0], dtype ='f')                                             # U_ref contains referance acc and steer
 V_ref = 0.3#6#10                                                                      # referance velocity 
@@ -48,24 +46,24 @@ V_ref = 0.3#6#10                                                                
 # Q_V = 1000#1000000                                                                          
 # Q_theta = 1000#200 
 
-Q_x = 11000#3000                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 11000#3000 
-Q_V = 10#1000000                                                                          
-Q_theta = 1900#200 
+Q_x = 25000#3000                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 25000#3000 
+Q_V = 100#1000000                                                                          
+Q_theta = 2000#200 
 
 # R1 = 1e+10	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
 # R2 = 1e+7#10000
 
-# R1 = 0.5*1e+7
-# R2 = 1e+6
-# R1 = 9000	
-# R2 = 235000
-
-R1 = 13000	
-R2 = 235000
-
+R1 = 4*1e+9
+R2 = 3*1e+5
+# R1 = 50000
+# R2 = 65000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
+pos_drones = np.array([0.0,0.0,0.0])
+
+
+
 
 """# parameters that depend on simulator """
 
@@ -80,38 +78,38 @@ x_bound_min = -inf
 y_bound_max = inf                      
 y_bound_min = -inf 
 V_bound_max = 8#inf                                                                           
-V_bound_min = -8#-inf                     
+V_bound_min = -8#-inf
+acc_max  = 4.5            
 theta_bound_max = inf                     
 theta_bound_min = -inf  
-
-acc_max = 4.2                                                                # throttle_max = 1                                                                                                                                             
+pos_drones = np.array([0.0,0.0,0.0])                                                  # throttle_max = 1                                                                                                                                             
 acc_min = -acc_max                                                                                                                                                                                                  
 steer_max = 40*pi/180                                                        # steer_input_max = 1                                                   
 steer_min = -steer_max
 
 
 
-global throttle,steer_input                                      # (x,y,V,theta) will store the current position,current speed and orientation 
+throttle,steer_input = None,None                                      # (x,y,V,theta) will store the current position,current speed and orientation 
 																			 # throttle and steer_input will store the inputs to the vehicle 
 x,y,V,theta = 0,0,0,0
-x_prev,y_prev,V_prev = 0,0,0									 
-global total_path_points    
+x_prev,y_prev,V_prev, theta_prev = 0.0,0.0,0.0,0.0								 
+total_path_points = None   
 is_ninety = True                                                                                                                                
 total_path_points = 0                                                                                                                                                                            
-global path                                                                                                                                       
+path = None                                                                                                                               
 
 flag = 0
 brake_vals = 0
-path = np.array([])
 
-def center_GPS_cb(data):
-	global path
-	# global joint_traj_arr    
+def vfunc(odom_d):
+	# print("Entered")
 	
-	joint_traj_arr = np.array([np.array(i.positions) for i in data.points])
-	path= joint_traj_arr[:,:2]
-	# print(path.shape)
-	# path_new = 
+	global pos_drones
+	
+	pos_drones[0] = odom_d.pose.pose.position.x
+	pos_drones[1] = odom_d.pose.pose.position.y
+	pos_drones[2] = odom_d.pose.pose.position.z 
+
 
 def equidist_path(path,total_path_points):
 
@@ -162,7 +160,6 @@ def equidist_path(path,total_path_points):
 
 
 	path_final = np.concatenate([x_regular, y_regular], axis = 1)
-
 	# plt.plot(path[:,0],path[:,1], color = 'r') 
 	# plt.plot(path_final[:,0],path_final[:,1], color = 'b')
 	path = path_final
@@ -204,7 +201,7 @@ def pathfunc():
 
 def odomfunc(odom):
 	
-	global x,y,V,theta,is_ninety
+	global x,y,V,theta,is_ninety,x_prev,y_prev,V_prev,theta_prev
 
 	x = odom.car_state.pose.pose.position.x
 	y = odom.car_state.pose.pose.position.y
@@ -214,11 +211,28 @@ def odomfunc(odom):
 
 	V = math.sqrt(odom.car_state.twist.twist.linear.x**2 + odom.car_state.twist.twist.linear.y**2)
 
-
-
 	quaternions_list = [quaternions.x,quaternions.y,quaternions.z,quaternions.w]
 	roll,pitch,yaw = euler_from_quaternion(quaternions_list)
 	theta = yaw
+	if np.abs(x)<0.001:
+		# print("PREV", x)
+		x,y,V,theta = x_prev, y_prev,V_prev,theta_prev
+		# print("AFTER",x)  
+	else:
+		x_prev,y_prev,V_prev,theta_prev = x,y,V, theta_prev     
+	if np.abs(V)<0.001:
+		# print("PREV", x)
+		V = V_prev  
+		# print("AFTER",x)  
+	else:
+		V_prev = V   
+	if np.abs(theta)<0.001:
+		# print("PREV", x)
+		theta = theta_prev  
+		# print("AFTER",x)  
+	else:
+		theta_prev = theta
+	# theta = np.pi+yaw
 
 
 
@@ -226,13 +240,13 @@ def odomfunc(odom):
 delta_z = None
 slope_throttle = 1
 
-def lane_norm_cb(data):
-	global delta_z
-	delta_z = data.z
-
+# def lane_norm_cb(data):
+# 	global delta_z
+# 	delta_z = data.z
+flag_drone_wait = 0
 
 def my_mainfunc():
-	global is_ninety, x_prev,y_prev,V_prev,x,y,V,brake_vals
+	global is_ninety, x_prev,y_prev,V_prev,x,y,V,brake_vals,pos_drones,flag_drone_wait
 	rospy.init_node('mpc_multipleShooting_pathTracking_carDemo', anonymous=True)
 	# rospy.Subscriber('/base_pose_ground_truth' , Odometry, odomfunc)   
 	# rospy.Subscriber('/mavros/local_position/odom' , Odometry, odomfunc)  
@@ -240,14 +254,15 @@ def my_mainfunc():
 	rospy.Subscriber('/car_state/complete' , customMessage, odomfunc)    
 	# rospy.Subscriber('/car_state/kalman_complete' , customMessage, odomfunc)
 	# rospy.Subscriber('/car_state/filter_complete' , customMessage, odomfunc)    
-	rospy.Subscriber('/car_state/filter_complete' , customMessage, odomfunc)   
-	rospy.Subscriber("/lane/mid", JointTrajectory, center_GPS_cb)
+	
+	# rospy.Subscriber('/lane/norm',Vector3,lane_norm_cb)   
+	rospy.Subscriber('/mavros/local_position/odom' , Odometry, vfunc) 
 
 
-	path_global = np.load("ugv_waypoints.npy")
-	total_path_points = (path_global[:,0]).size
+	path = np.load("ugv_waypoints.npy")
+	total_path_points = (path[:,0]).size
 
-	path_global = equidist_path(path_global,total_path_points)
+	path = equidist_path(path,total_path_points)
 	 
 
 	#rospy.Subscriber('/astroid_path', Path, pathfunc)
@@ -364,13 +379,15 @@ def my_mainfunc():
 	ubx[(n_bound_var*(N+1)+1):(n_bound_var*(N+1)+n_controls*N):n_controls] = steer_max  
 
 
+
 	X_init = np.array([x,y,V,theta], dtype = 'f')                                                                                                               
-	X_target = np.array([ path[len(path)-1][0], path[len(path)-1][1],0, 0 ]  , dtype = 'f')            #theta_target not considered for stopping condition and Velocity at target is zero !  
+	X_target = np.array([ path[total_path_points-1][0], path[total_path_points-1][1],0, 0 ]  , dtype = 'f')            #theta_target not considered for stopping condition and Velocity at target is zero !  
 
-	P = X_init      
-	close_index = KDTree(path).query(P[0:n_states-2])[1]
+	P = X_init   
+	P_copy = copy.deepcopy(P)   
+	close_index = KDTree(path).query(P_copy[0:n_states-2])[1]
 
-	for i in range(0,N):                                                                         
+	for i in range(0,N):                                                                              
 		P = ca.vertcat(P,path[close_index+i,0:2])        
 		P = ca.vertcat(P,V_ref)                                                                                                                                                                
 		P = ca.vertcat(P, math.atan((path[close_index+i+1][1] - path[close_index+i][1])/(path[close_index+i+1][0] - path[close_index+i][0])) )    
@@ -390,13 +407,18 @@ def my_mainfunc():
 
 	try:
 		while ( ca.norm_2( P[0:n_states-1].reshape((n_states-1,1)) - X_target[0:n_states-1] ) > error_allowed  ) :       
-			print(path.shape)
-			if np.abs(x)<0.001:
-				# print("PREV", x)
-				x,y,V = x_prev, y_prev,V_prev  
-				# print("AFTER",x)  
-			else:
-				x_prev,y_prev,V_prev = x,y,V                                                                              
+			# if np.abs(x)<0.001:
+			# 	# print("PREV", x)
+			# 	x,y,V = x_prev, y_prev,V_prev  
+			# 	# print("AFTER",x)  
+			# else:
+			# 	x_prev,y_prev,V_prev = x,y,V       
+			# if np.abs(V)<0.001:
+			# 	# print("PREV", x)
+			# 	V = V_prev  
+			# 	# print("AFTER",x)  
+			# else:
+			# 	V_prev = V                                                                            
 			args = {
 					'lbx':lbx,
 					'lbg':lbg,	    
@@ -440,30 +462,101 @@ def my_mainfunc():
 			# 	msg.shift_gears =2
 			
 			# if delta_z 
-			# if V>6.5:
-			# 	msg.brake  = 0.1
-			if not (is_ninety):
-				brake_vals +=1
-				# if brake_vals ==4:
-				print("Waiting for the drone")
+			if V>3.5:
+				msg.brake  = 0.35
+
+			# if not (is_ninety):
+			# 	brake_vals +=1
+			# 	# if brake_vals ==4:
+			# 	print("Waiting for the drone")
+			# 	msg.brake = 1
+			# 		# brake_vals = 0
+
+			x_copy1 = copy.deepcopy(x)
+			y_copy1 = copy.deepcopy(y)
+			pos_drones_copy = copy.deepcopy(pos_drones)
+			close_index = KDTree(path).query(np.array([x_copy1,y_copy1]))[1]
+			index_drone = KDTree(path).query(np.array([pos_drones_copy[0],pos_drones_copy[1]]))[1]
+
+			
+			# if (index_drone < close_index) or  (np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)<3.7):
+			# 	flag_drone_wait = 1
+			# 	# print("Waiting for the drone")
+			# 	# while (index_drone < close_index or np.abs((np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2))-4)<0.5):
+			# 	# 	if index_drone < close_index:
+			# 	# 		print("CHECK 1")
+
+			# 	# 	if (np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)>4):
+			# 	# 		print("check 2")
+			# 	# 	print("Waiting for the drone in whie")
+			# 	# 	msg.brake = 1
+			# 	# 	msg.throttle = 0
+			# 	# 	rate.sleep()
+			# 	# 	instance.publish(msg)
+			# 		# rospy.spin()
+			# if flag_drone_wait == 1:
+			# 	print("waiting for the drone")
+			# 	msg.brake = 1
+			# 	msg.throttle = 0
+			# 	# instance.publish(msg)
+			# 	boundary = 0.2
+				
+			# 	condition1 = (index_drone>close_index) and np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)<(4.0 +boundary)
+			# 	condition2 = np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)<(4.0 - boundary)
+				
+			# 	if condition1 or condition2:
+			# 		if (index_drone>close_index):
+			# 			print("DUE TO INDEX")
+			# 		if (np.abs(np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)-4.0)<0.2):
+			# 			print("due to pos")
+			# 		print("Turning off flag")
+			# 		flag_drone_wait = 0
+
+			
+			global metres_ahead
+			if (index_drone < close_index) and (np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)>(metres_ahead-0.2)):
+				flag_drone_wait = 1
+				# print("Waiting for the drone")
+				# while (index_drone < close_index or np.abs((np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2))-4)<0.5):
+				# 	if index_drone < close_index:
+				# 		print("CHECK 1")
+
+				# 	if (np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)>4):
+				# 		print("check 2")
+				# 	print("Waiting for the drone in whie")
+				# 	msg.brake = 1
+				# 	msg.throttle = 0
+				# 	rate.sleep()
+				# 	instance.publish(msg)
+					# rospy.spin()
+			if flag_drone_wait == 1:
+				print("waiting for the drone")
 				msg.brake = 1
-					# brake_vals = 0
-			plt.clf()
-			print("GLOBAL_SHAPE",path_global.shape)
-			print("LOCAL_SHAPE",path.shape)
-			plt.scatter(x,y)
-			plt.plot(path_global[:400, 0], path_global[:400, 1])
-			plt.plot(path[:,0],path[:,1])
-			plt.pause(0.0001)
+				msg.throttle = 0
+				# instance.publish(msg)
+				if (index_drone>close_index) and (np.abs(np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)-metres_ahead)<0.2):
+					print("Turning off flag")
+					flag_drone_wait = 0
+
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
-			print(round(V,2)," ",KDTree(path).query(np.array([x,y]))[0],"   ", throttle )
-			cross_track_error.append(KDTree(path).query(np.array([x,y]))[0])
+			# print(x,y,V)
+
+			x_copy = copy.deepcopy(x)
+			y_copy = copy.deepcopy(y)
+			# print("x,y before : ",x,y)
+			cross_track_error.append(KDTree(path).query(np.array([x_copy,y_copy]))[0])
+			# print("x,y after : ",x,y)
 
 			P[0:n_states] = [x,y,V,theta] 
-
-			close_index = KDTree(path).query(np.array([x,y]))[1]
-
+			print("Yaw : ",theta)
+			arrow_size = 40
+			plt.clf()
+			plt.xlim(-100,400)
+			plt.ylim(-100,400)
+			plt.plot(path[:,0],path[:,1])
+			plt.arrow(x,y,x + arrow_size*math.cos(theta),y+arrow_size*math.sin(theta))
+			plt.pause(0.0001)
 			if N+(close_index) < total_path_points :                                                                                # Updating P for next N path points and next N reference controls
 				P[n_states:n_states*(N+1):n_states] = path[close_index:N+close_index,0] 
 				P[n_states+1:n_states*(N+1):n_states] = path[close_index:N+close_index,1]
