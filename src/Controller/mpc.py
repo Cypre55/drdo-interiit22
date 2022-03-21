@@ -42,27 +42,22 @@ U_ref = np.array([0,0], dtype ='f')                                             
 V_ref = 0.3#6#10                                                                      # referance velocity 
 
 
-# Q_x = 250000#3000                                                                      # gains to control error in x,y,V,theta during motion
-# Q_y = 250000#3000 
-# Q_V = 1000#1000000                                                                          
-# Q_theta = 1000#200 
 
-# Q_x = 51000#3000                                                                      # gains to control error in x,y,V,theta during motion
-# Q_y = 51000#3000 
-# Q_V = 100#1000000                                                                          
-# Q_theta = 100#200 
-
-Q_x =30500                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 30500 
+Q_x =32500                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 32500 
 Q_V = 10                                                                          
 Q_theta = 1000
-# R1 = 1e+10	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
-# R2 = 1e+7#10000
 
-# R1 = 1e+10
-# R2 = 6*1e+5
-R1 = 111000
-R2 = 59000
+R1 = 191000
+R2 = 55000
+
+# Q_x =36500                                                                      # gains to control error in x,y,V,theta during motion
+# Q_y = 36500 
+# Q_V = 10                                                                          
+# Q_theta = 1000
+
+# R1 = 191000
+# R2 = 55000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
 pos_drones = np.array([0.0,0.0,0.0])
@@ -287,8 +282,8 @@ def my_mainfunc():
 	rospy.Subscriber('/mavros/local_position/odom' , Odometry, vfunc) 
 
 
-	# path = np.load("ugv_waypoints.npy")
-	path = np.load("path_new_rs.npy").T[20:,0:2]
+	path = np.load("Full_World1_RUN.npy")
+	# path = np.load("Full_World1_RUN.npy").T[20:,0:2]
 	
 
 	total_path_points = (path[:,0]).size
