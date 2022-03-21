@@ -51,6 +51,7 @@ Q_theta = 1000
 R1 = 191000
 R2 = 55000
 
+
 # Q_x =36500                                                                      # gains to control error in x,y,V,theta during motion
 # Q_y = 36500 
 # Q_V = 10                                                                          
@@ -236,22 +237,22 @@ def odomfunc(odom):
 	else:
 		x_prev,y_prev,V_prev,theta_prev = x,y,V, theta_prev  
 	
-	if (np.abs(theta - theta_prev) > 0.3):
-		theta = theta_prev
+	# if (np.abs(theta - theta_prev) > 0.3):
+	# 	theta = theta_prev
 
   
-	if np.abs(V)<0.001:
-		# print("PREV", x)
-		V = V_prev  
-		# print("AFTER",x)  
-	else:
-		V_prev = V   
-	if np.abs(theta)<0.001:
-		# print("PREV", x)
-		theta = theta_prev  
-		# print("AFTER",x)  
-	else:
-		theta_prev = theta
+	# if np.abs(V)<0.001:
+	# 	# print("PREV", x)
+	# 	V = V_prev  
+	# 	# print("AFTER",x)  
+	# else:
+	# 	V_prev = V   
+	# if np.abs(theta)<0.001:
+	# 	# print("PREV", x)
+	# 	theta = theta_prev  
+	# 	# print("AFTER",x)  
+	# else:
+	# 	theta_prev = theta
 
 	# if np.abs(theta_prev-theta)
 
@@ -282,8 +283,8 @@ def my_mainfunc():
 	rospy.Subscriber('/mavros/local_position/odom' , Odometry, vfunc) 
 
 
-	path = np.load("Full_World1_RUN.npy")
-	# path = np.load("Full_World1_RUN.npy").T[20:,0:2]
+	# path = np.load("Full_World1_RUN.npy")
+	path = np.load("path_new_rs.npy").T[20:,0:2]
 	
 
 	total_path_points = (path[:,0]).size
@@ -600,11 +601,14 @@ def my_mainfunc():
 			else:
 				msg.brake = 0
 
-			if ((np.sqrt((pos_drones[0] - drone_msg.pose.position.x)**2+(pos_drones[1] - drone_msg.pose.position.y)**2)) > 0.7 ) and (np.abs(drone_msg.pose.position.x)>0):
+			if ((np.sqrt((pos_drones[0] - drone_msg.pose.position.x)**2+(pos_drones[1] - drone_msg.pose.position.y)**2)) > 2 ) and (np.abs(drone_msg.pose.position.x)>0):
+
 				print("-------------------")
 				print("WAITING for drone mk2")
-				# print("drone moving to",drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z)
-
+				print("drone moving to",drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z)
+				print("donre position",pos_drones[0],pos_drones[1],pos_drones[2])
+				pub1.publish(drone_msg)
+				 
 				# drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z = (path[int(close_index+index_ahead)][0]), (path[int(close_index+index_ahead)][1]),drone_height+z #TILL CAR
 
 				msg.brake = 1
@@ -700,7 +704,7 @@ def my_mainfunc():
 
 
 			# print("THROTLE", msg.throttle, "BRAKE", msg.brake)
-			print("THETA", theta)
+			print("THETA", theta,x,y)
 
 			pub1.publish(drone_msg)
 			instance.publish(msg)
