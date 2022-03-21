@@ -265,7 +265,7 @@ def calculations():
             y = int(y)
 
             ratioE = ma/MA
-            condition = ratioE>1.4 and ratioE<1.9
+            condition = ratioE>1.4 and ratioE<1.99
             print(ratioE)
         else:
             condition = True

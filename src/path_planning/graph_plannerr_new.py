@@ -126,9 +126,9 @@ def add_node_to_graph(point):
     global reaching_flag
 
     if in_prev_buffer(point):
-        point[0] = 2*graph.arr[graph.current].UAV.position.x - graph.arr[graph.last_nodes[-2]].UAV.position.x
-        point[1] = 2*graph.arr[graph.current].UAV.position.y - graph.arr[graph.last_nodes[-2]].UAV.position.y 
-        print("Forcfully moving forward")
+        # point[0] = 2*graph.arr[graph.current].UAV.position.x - graph.arr[graph.last_nodes[-2]].UAV.position.x
+        # point[1] = 2*graph.arr[graph.current].UAV.position.y - graph.arr[graph.last_nodes[-2]].UAV.position.y 
+        # print("Forcfully moving forward")
         return
 
     uav = Pose()
@@ -238,17 +238,25 @@ def backtrack_graph():
     # if reaching_flag == True:
     #     return
 
-    print("Backtracking |!~!|")
-    uav_wp.pose = graph.arr[graph.last_nodes[-2]].UAV
-    uav_wp_pub.publish(uav_wp)
-    reaching_flag = True
+    if len(graph.last_nodes) >= 3:
+        print("Backtracking |!~!|")
+        
+        uav_wp.pose = graph.arr[graph.last_nodes[-3]].UAV
+        uav_wp_pub.publish(uav_wp)
+        reaching_flag = True
 
-    
-    # graph.arr.pop(0)
-    # # if graph.current != -1:
-    # #     graph.arr[graph.last_nodes[-2]].children.remove(graph.current)
-    # graph.last_nodes.pop(0)
-    # graph.current = graph.last_nodes[-1]
+        
+        graph.arr.pop()
+        graph.arr.pop()
+        # if graph.current != -1:
+        #     graph.arr[graph.last_nodes[-2]].children.remove(graph.current)
+        graph.last_nodes.pop()
+        graph.last_nodes.pop()
+        if graph.arr[graph.last_nodes[0]].parent != -1:
+            graph.last_nodes.insert(0, graph.arr[graph.last_nodes[0]].parent)
+        if graph.arr[graph.last_nodes[0]].parent != -1:
+            graph.last_nodes.insert(0, graph.arr[graph.last_nodes[0]].parent)
+        graph.current = graph.last_nodes[-1]
 
 
 def build_graph():
@@ -273,6 +281,14 @@ def build_graph():
         flag = False
 
     if reaching_flag == True:
+        return
+
+    try:
+        if joint_traj[:, :2].any() == 0:
+            pass
+    except Exception as e:
+        print(e)
+        print("Joint Traj: {}".format(joint_traj))
         return
 
     # plt.clf()
@@ -366,7 +382,7 @@ def build_graph():
     
     ## To be done only on start
     if (is_car is not None and is_car == True) and car_vect is None:
-        next_graph_pt = check_spline_pts(car_back, car_front, right_bound, left_bound, current_uav_xyz[:, :2])
+        next_graph_pt = check_spline_pts(car_front, car_back, right_bound, left_bound, current_uav_xyz[:, :2])
         
         if next_graph_pt is not None:
             car_vect = car_front - car_back
@@ -470,6 +486,10 @@ def build_graph():
 
 def center_GPS_cb(data):
     global joint_traj
+    if data.joint_names == "BACKTRACK":
+        backtrack_graph()
+        joint_traj = None
+        return
     joint_traj = np.array([np.array(i.positions) for i in data.points])
 
 def current_uav_pose_cb(data):
@@ -494,6 +514,7 @@ def current_uav_pose_cb(data):
     dist = np.linalg.norm(arr_1 - arr_2)
     if (dist < REACH_THRESHOLD):
         reaching_flag = False
+        print("Reached Waypoint: ({}, {}, {})".format(uav_wp.pose.position.x, uav_wp.pose.position.y, uav_wp.pose.position.z))
         get_GPS_flag.data = True
         get_GPS_pub.publish(get_GPS_flag)
 

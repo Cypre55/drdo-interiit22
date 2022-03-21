@@ -38,8 +38,8 @@ def fit_spline(x,y):
     t = np.linspace(0, len(path_x), len(path_x))/ 50
     smallS = 1000
     factor = 1
-    x = np.array(path_x)
     try:
+        x = np.array(path_x)
         tck = interpolate.splrep(t, x, s = smallS, k = 5)
         x_new = interpolate.splev(t, tck, der=0)
         y = np.array(path_y)
@@ -120,9 +120,82 @@ def project_normals(norms):
     # new_norms=new_norms.reshape((2,3,3))
     return new_norms
 
-
-
 def find_path_without_car(dep,rgb):
+    global lane_mask,pre_est,final_mask
+    norms=find_grad_sobel(dep)
+    norms=normalized(norms,axis=2)
+    norms=project_normals(norms)
+    dp=np.sum(norms*pre_est,axis=2)
+    dp[np.isnan(dp)] = 0
+    lane=dp>0.99
+    lane=binary_erosion(lane,disk(5))
+    lane=np.uint8(lane)
+    (numLabels, labels, stats, centroids)=cv.connectedComponentsWithStats(lane,4)
+    mx=0
+    idx=-1
+    for i in range(1,numLabels):
+        if stats[i, cv.CC_STAT_AREA]>mx:
+            mx = stats[i, cv.CC_STAT_AREA]
+            idx=i
+    lane=labels==idx
+    lane_mask=255*np.uint8(lane)
+
+    if not np.any(lane) or np.sum(lane)<50000:
+        print("Rejected patch : "+str(np.sum(lane)))
+        return None
+    pre_est=np.mean(norms[lane], axis=0)
+    edges=skeletonize(lane^binary_erosion(lane,disk(5)))
+    _,labels=cv.connectedComponents(np.uint8(edges),8)
+    # cv.imshow("dshjaf",255*np.uint8(edges))
+    # cv.waitKey(1)
+    if len(np.unique(labels))<2:
+        return None
+    if len(np.unique(labels))==2:
+        ## check for closed contour
+        x,y=np.where(labels==1)
+        # print(x,y)
+        lx,ly=fit_spline(x,y)
+        if lx is None:
+            return None
+        l,r,u,d=np.sum(lane_mask[:,0]),np.sum(lane_mask[:,639]),np.sum(lane_mask[0,:]),np.sum(lane_mask[479,:])
+        zz=np.zeros((480,640))
+
+        if max(l,r,u,d)==d:
+            zz[479,:]=1
+            print("D")
+        elif max(l,r,u,d)==u:
+            zz[0,:]=1
+            print("U")
+        elif max(l,r,u,d)==r:
+            zz[:,639]=1
+            print("R")
+        else:
+            zz[:,0]=1
+            print("L")
+        x,y=np.where(zz==1)
+        rx,ry=fit_spline(x,y)
+    else:
+        x,y=np.where(labels==1)
+        lx,ly=fit_spline(x,y)
+        if lx is None:
+            return None
+        x,y=np.where(labels==2)
+        rx,ry=fit_spline(x,y)
+    if rx is None:
+        return None
+    if lx[0]>lx[-1]:
+        lx=lx[::-1]
+        ly=ly[::-1]
+    if rx[0]>rx[-1]:
+        rx=rx[::-1]
+        ry=ry[::-1]
+    mx,my=(lx+rx)/2,(ly+ry)/2
+    mx1,my1=fit_spline(mx,my)
+    mx1=np.int32(mx1)
+    my1=np.int32(my1)
+    return [lx,ly,rx,ry,mx1,my1]
+
+def find_path_without_car1(dep,rgb):
     global lane_mask,final_mask
     norms=find_grad_sobel(dep)
     norms=normalized(norms,axis=2)
@@ -240,9 +313,9 @@ def poseback(data):
 def publish_traj(pub,cx,cy,name):
     if name=="LEFT":
         plt.clf()
-    # plt.plot(cy,cx)
-    # plt.draw()
-    # plt.pause(0.00000000001)
+    plt.plot(cy,-cx)
+    plt.draw()
+    plt.pause(0.000000000001)
     global dep
     path=projection(cx,cy,dep)[:3]
     traj=JointTrajectory()
@@ -253,6 +326,15 @@ def publish_traj(pub,cx,cy,name):
         pt.positions=path[:,i]
         traj.points.append(pt)
     pub.publish(traj)
+
+def dist(x,y):
+    d=(x.pose.position.x-y.pose.position.x)**2
+    d+=(x.pose.position.y-y.pose.position.y)**2
+    d+=(x.pose.position.z-y.pose.position.z)**2
+    return d
+
+
+
 
 def segmenter():
     global pub
@@ -266,17 +348,42 @@ def segmenter():
     mask_pub=rospy.Publisher('/lane/mask',Image,queue_size=1)
     pub=rospy.Publisher('/finalmask',Image,queue_size=1)
     bridge=CvBridge()
+    marker=PoseStamped()
+    marker.pose.position.x=-246
+    marker.pose.position.y=-156
+    marker.pose.position.z=5.9
+    # marker.pose.position.x=-153
+    # marker.pose.position.y=-133
+    # marker.pose.position.z=9
+    mode = "DEP"
     while not rospy.is_shutdown():
         # start_time=time.time()
         global dep
-        path=find_path_without_car(dep,rgb)
+        d=dist(marker,drone_pose)
+        print(pre_est)
+        if mode == "DEP" and d<10000:
+            mode = "RGB"
+        if mode=="DEP":
+            print("DEP BASED")
+            path=find_path_without_car(dep,rgb)
+        else:
+            print("RGB BASED")
+            path=find_path_without_car1(dep,rgb)
         mask_pub.publish(bridge.cv2_to_imgmsg(lane_mask))
         # end_time=time.time()
         if path is not None:
+            # ten = int(len(path[4])/20)
+            # path[4] = path[4][ten:-ten]
+            # path[5] = path[5][ten:-ten]
             publish_traj(left_pub,path[0],path[1],"LEFT")
             publish_traj(right_pub,path[2],path[3],"RIGHT")
             publish_traj(mid_pub,path[4],path[5],"MID")
             pub.publish(bridge.cv2_to_imgmsg(np.uint8(final_mask)))
+        else:
+            traj=JointTrajectory()
+            traj.joint_names="BACKTRACK"
+            traj.header.stamp=rospy.Time.now()
+            mid_pub.publish(traj)
         plt.ion()
         plt.show()
 
