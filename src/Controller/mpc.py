@@ -51,17 +51,17 @@ V_ref = 0.3#6#10                                                                
 # Q_V = 100#1000000                                                                          
 # Q_theta = 100#200 
 
-Q_x =9500                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 9500 
+Q_x =8500                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 8500 
 Q_V = 10                                                                          
-Q_theta = 2000
+Q_theta = 1000
 # R1 = 1e+10	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
 # R2 = 1e+7#10000
 
 # R1 = 1e+10
 # R2 = 6*1e+5
-R1 = 5000
-R2 = 6000
+R1 = 6700
+R2 = 9000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
 pos_drones = np.array([0.0,0.0,0.0])
@@ -279,7 +279,7 @@ def my_mainfunc():
 
 
 	# path = np.load("ugv_waypoints.npy")
-	path = np.load("path_new_rs.npy").T[20:1020,0:2]
+	path = np.load("path_new_rs.npy").T[20:,0:2]
 	
 
 	total_path_points = (path[:,0]).size
@@ -480,6 +480,7 @@ def my_mainfunc():
 			msg.brake = 0.0 
 			msg.steer = steer_input
 			msg.shift_gears =2
+
 			if throttle < 0:
 				# msg.shift_gears =3                                              # reverse gear
 				# throttle = -throttle
@@ -571,32 +572,39 @@ def my_mainfunc():
 			print("Drone_index", index_drone)
 			print("Car_index", close_index)
 			index_or_condition = ((index_drone-close_index)<10)
+			index_ahead = 45
+			drone_height = 18
 			if ((index_drone<=close_index) or index_or_condition) and not (is_ninety):
 				print("MOVING DRONE")
 
-				drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z = (path[int(close_index+32)][0]), (path[int(close_index+32)][1]),15+z #TILL CAR
+				drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z = (path[int(close_index+index_ahead)][0]), (path[int(close_index+index_ahead)][1]),drone_height+z #TILL CAR
 				print("drone moving to",drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z)
 			if ((index_drone<=close_index) or index_or_condition) and not (is_ninety):
 				print("-------------------")
 				print("WAITING for drone")
 				msg.brake = 1
 				msg.throttle = 0
+			
+			else:
+				msg.brake = 0
 
-			if ((np.sqrt((pos_drones[0] - drone_msg.pose.position.x)**2+(pos_drones[0] - drone_msg.pose.position.x)**2)) > 1.2 ) and (np.abs(drone_msg.pose.position.x)>0):
+			if ((np.sqrt((pos_drones[0] - drone_msg.pose.position.x)**2+(pos_drones[0] - drone_msg.pose.position.x)**2)) > 0.9 ) and (np.abs(drone_msg.pose.position.x)>0):
 				print("-------------------")
 				print("WAITING for drone mk2")
-				print("drone moving to",drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z)
+				# print("drone moving to",drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z)
 
-				drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z = (path[int(close_index+32)][0]), (path[int(close_index+32)][1]),15+z #TILL CAR
+				# drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z = (path[int(close_index+index_ahead)][0]), (path[int(close_index+index_ahead)][1]),drone_height+z #TILL CAR
 
 				msg.brake = 1
 				msg.throttle = 0
+			
 
 			
 			# if (index_drone>close_index) and not (is_ninety):
 
 
 
+			print("THROTLE", msg.throttle, "BRAKE", msg.brake)
 
 			pub1.publish(drone_msg)
 			instance.publish(msg)

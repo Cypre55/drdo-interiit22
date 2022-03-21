@@ -423,16 +423,11 @@ def calculations():
     # if cv_mask != None:
     # Taking a matrix of size 5 as the kernel
     
-    # thresh = 255 - cv_mask
-
-    # kernel = np.ones((17,17), np.uint8)
-    # cv_mask_dil = cv2.erode(thresh, kernel, iterations=1)
-    # kernel = np.ones((15,15), np.uint8)
-    # thresh = cv2.dilate(cv_mask_dil, kernel, iterations=1)
+    kernel = np.ones((3,3), np.uint8)
     
-    # cv2.imshow("connected mask", thresh)
-    # cv2.waitKey(1)
-
+    cv_mask_dil = cv2.dilate(cv_mask, kernel, iterations=1)
+    
+    thresh = 255 - cv_mask_dil
     # cv2.imshow("mask_inv",thresh)
     # cv2.imwrite("mask_inv.png",thresh)
     # cv2.waitKey(0)
@@ -486,7 +481,7 @@ def calculations():
             y = int(y)
 
             ratioE = ma/MA
-            condition = ratioE>1.6 and ratioE<2.5
+            condition = ratioE>1.5 and ratioE<2.4
             print(ratioE)
         else:
             condition = True
@@ -663,7 +658,7 @@ def calculations():
             coord = projection(np.array([yfront,cy,yback]), np.array([xfront,cx,xback]), cv_depth, drone_pose)
             # cv2.circle(image,(int(cx),int(cy)),7,(0,0,255),-1)
             # cv2.circle(image, (int(xfront), int(yfront)), 7, (0, 0,255), -1)
-            cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront), int(yfront)),(0,255,0),thickness = 4)
+            # cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront), int(yfront)),(0,255,0),thickness = 4)
             # normal = gradients(cy+35,cx+35)
             # normal2 = gradients(cy + 70,cx+70)
             # print("Should be 0")
