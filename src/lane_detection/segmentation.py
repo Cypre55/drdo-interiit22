@@ -325,6 +325,7 @@ def segmenter():
     mask_pub=rospy.Publisher('/lane/mask',Image,queue_size=1)
     norm_pub=rospy.Publisher('/lane/norm',Vector3,queue_size=1)
     bridge=CvBridge()
+    rate=rospy.Rate(20)
     while not rospy.is_shutdown():
         start_time=time.time()
         global iscar, dep
@@ -347,10 +348,12 @@ def segmenter():
             publish_traj(mid_pub,path[4],path[5],"MID")
             mask_pub.publish(bridge.cv2_to_imgmsg(lane_mask))
             publish_norm(norm_pub)
+
             # pre_est1=np.array([1., 0., 0.]).reshape((1,1,3))
             # test=np.array([[pre_est, pre_est1, pre_est],
             #                 [pre_est1, pre_est, pre_est1]])
             # print(project_normals(test))
+        rate.sleep()
 
 if __name__ == '__main__':
     segmenter()

@@ -35,8 +35,8 @@ n_controls = 2
 metres_ahead = 4.0
 
 
-N =67#73                                                                           # Prediction horizon(same as control horizon)
-error_allowed = 0.1
+N =15#73                                                                           # Prediction horizon(same as control horizon)
+error_allowed = 0.05
 U_ref = np.array([0,0], dtype ='f')                                             # U_ref contains referance acc and steer
 V_ref = 0.3#6#10                                                                      # referance velocity 
 
@@ -46,18 +46,22 @@ V_ref = 0.3#6#10                                                                
 # Q_V = 1000#1000000                                                                          
 # Q_theta = 1000#200 
 
-Q_x = 15000#3000                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 15000#3000 
-Q_V = 100#1000000                                                                          
-Q_theta = 200#200 
+# Q_x = 51000#3000                                                                      # gains to control error in x,y,V,theta during motion
+# Q_y = 51000#3000 
+# Q_V = 100#1000000                                                                          
+# Q_theta = 100#200 
 
+Q_x =9500                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 9500 
+Q_V = 10                                                                          
+Q_theta = 2000
 # R1 = 1e+10	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
 # R2 = 1e+7#10000
 
-R1 = 4*1e+9
-R2 = 2*1e+5
-# R1 = 50000
-# R2 = 65000
+# R1 = 1e+10
+# R2 = 6*1e+5
+R1 = 5000
+R2 = 6000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
 pos_drones = np.array([0.0,0.0,0.0])
@@ -91,7 +95,7 @@ steer_min = -steer_max
 
 throttle,steer_input = None,None                                      # (x,y,V,theta) will store the current position,current speed and orientation 
 																			 # throttle and steer_input will store the inputs to the vehicle 
-x,y,V,theta = 0,0,0,0
+x,y,V,theta,z = 0,0,0,0,0
 x_prev,y_prev,V_prev, theta_prev = 0.0,0.0,0.0,0.0								 
 total_path_points = None   
 is_ninety = True                                                                                                                                
@@ -114,11 +118,12 @@ def vfunc(odom_d):
 def equidist_path(path,total_path_points):
 
 	# global total_path_points,path
+	# global path
 	
 	resolution = 0.1
 	t = np.linspace(0, total_path_points, total_path_points)/ 50
 
-	smallS = 7000
+	smallS = 80
 	
 	factor = 10
 	t_new = np.linspace(0, total_path_points*factor, total_path_points*factor)/ (50*factor)
@@ -160,21 +165,21 @@ def equidist_path(path,total_path_points):
 
 
 	path_final = np.concatenate([x_regular, y_regular], axis = 1)
-	# plt.plot(path[:,0],path[:,1], color = 'r') 
-	# plt.plot(path_final[:,0],path_final[:,1], color = 'b')
-	path = path_final
+	plt.plot(path[:,0],path[:,1], color = 'r') 
+	plt.plot(path_final[:,0],path_final[:,1], color = 'b')
+	# path = path_final
 
-	# plt.show()
-	return path
+	plt.show()
+	return path_final
 	
 
 #def pathfunc(Path):                                                                                                                                       
 def pathfunc():	
 	
+	global total_path_points,path
 	global flag
 	if flag == 0:
 		flag = 1
-		global total_path_points,path
 		if total_path_points == 0:
 			
 			# total_path_points = len(Path.poses)
@@ -182,9 +187,13 @@ def pathfunc():
 			# path = np.load("/home/satwik/catkin_ws/src/drdo-interiit22/graph_nodes.npy")
 			path = np.load("Full_World1_RUN.npy")
 			path = path[250:]
-			total_path_points = (path[:,0]).size
+			total_path_points = path.shape[0] #(path[:,0]).size
+
+			# print("Path size before sampling : ",path.shape)
 
 			path = equidist_path(path,total_path_points)
+
+			# print("Path size after sampling : ",path.shape)
 
 			# path = np.array([[i.UGV.positi] for i in path])
 			
@@ -202,11 +211,12 @@ first = 0
 
 def odomfunc(odom):
 	
-	global x,y,V,theta,is_ninety,x_prev,y_prev,V_prev,theta_prev
+	global x,y,V,theta,is_ninety,x_prev,y_prev,V_prev,theta_prev,z
 	global first
 
 	x = odom.car_state.pose.pose.position.x
 	y = odom.car_state.pose.pose.position.y
+	z = odom.car_state.pose.pose.position.z
 	is_ninety = odom.isCarNinety.data
 
 	# theta_prev1 = theta
@@ -254,7 +264,8 @@ slope_throttle = 1
 flag_drone_wait = 0
 
 def my_mainfunc():
-	global is_ninety, x_prev,y_prev,V_prev,x,y,V,brake_vals,pos_drones,flag_drone_wait
+	global is_ninety, x_prev,y_prev,V_prev,x,y,V,brake_vals,pos_drones,flag_drone_wait,z
+	global path
 	rospy.init_node('mpc_multipleShooting_pathTracking_carDemo', anonymous=True)
 	# rospy.Subscriber('/base_pose_ground_truth' , Odometry, odomfunc)   
 	# rospy.Subscriber('/mavros/local_position/odom' , Odometry, odomfunc)  
@@ -267,13 +278,21 @@ def my_mainfunc():
 	rospy.Subscriber('/mavros/local_position/odom' , Odometry, vfunc) 
 
 
-	path = np.load("ugv_waypoints.npy")
+	# path = np.load("ugv_waypoints.npy")
+	path = np.load("path_new_rs.npy").T[20:1020,0:2]
+	
+
 	total_path_points = (path[:,0]).size
+	# print("Path siez before sampling : ",path.shape)
 
 	path = equidist_path(path,total_path_points)
+	# print("Last path point : ",path[-1])
+	# print("Path siez after sampling : ",path.shape)
+
+	total_path_points = (path[:,0]).size
 	 
 
-	#rospy.Subscriber('/astroid_path', Path, pathfunc)
+	#rospy.Subscriber('/astroid_path ', Path, pathfunc)
 	# pathfunc()
 
 	instance = rospy.Publisher('prius', Control, queue_size=10)
@@ -326,7 +345,7 @@ def my_mainfunc():
 		if i == 0:
 			g = ca.vertcat( g,( X[0:n_states,i] - P[0:n_states].reshape((n_states,1)) )  )                                                             
 		else:
-			# f_value = f(X[0:n_states,i-1],U[0:n_controls,i-1])                                                             # euler method not used 
+			# f_value = f(X[0:n_states,TP_befi-1],U[0:n_controls,i-1])                                                             # euler method not used 
 			# pred_st = X[0:n_states,i-1] + delta_T*f_value                                                                    
 
 			K1 = f(X[0:n_states,i-1],U[0:n_controls,i-1])                                                                    # Runge Kutta method of order 4 
@@ -461,17 +480,17 @@ def my_mainfunc():
 			msg.brake = 0.0 
 			msg.steer = steer_input
 			msg.shift_gears =2
-			# if throttle < 0:
-			# 	# msg.shift_gears =3                                              # reverse gear
-			# 	# throttle = -throttle
-			# 	msg.throttle = 0.0                                  
-			# 	msg.brake = -20*throttle  												#brake
+			if throttle < 0:
+				# msg.shift_gears =3                                              # reverse gear
+				# throttle = -throttle
+				msg.throttle = 0.0                                  
+				msg.brake = -throttle  												#brake
 			# 	msg.steer = steer_input
 			# 	msg.shift_gears =2
 			
 			# if delta_z 
-			if V>7.5:
-				msg.brake  = 0.35
+			# if V>7.5:
+			# 	msg.brake  = 0.35
 
 			# if not (is_ninety):
 			# 	# brake_vals +=1
@@ -479,12 +498,9 @@ def my_mainfunc():
 			# 	print("90_perc brake")
 			# 	msg.brake = 0.4
 			# 		# brake_vals = 0
-
-			x_copy1 = copy.deepcopy(x)
-			y_copy1 = copy.deepcopy(y)
-			pos_drones_copy = copy.deepcopy(pos_drones)
-			close_index = KDTree(path).query(np.array([x_copy1,y_copy1]))[1]
-			index_drone = KDTree(path).query(np.array([pos_drones_copy[0],pos_drones_copy[1]]))[1]
+			# print("Path size before kdtree : ",path.shape)
+			
+			# print("Path size after kdtree : ",path.shape)
 
 			
 			# if (index_drone < close_index) or  (np.sqrt((x-pos_drones[0])**2+(y-pos_drones[1])**2)<3.7):
@@ -548,16 +564,35 @@ def my_mainfunc():
 			"""
 
 			#MOVE DRONE
-			if (index_drone<close_index) and not (is_ninety):
-				# print("MOVING DRONE")
+			close_index = KDTree(path).query(np.array([x,y]))[1]
+			index_drone = KDTree(path).query(np.array([pos_drones[0],pos_drones[1]]))[1]
+			print("UGV Pose",(x,y))
+			print("UAV Pose",(pos_drones[0],pos_drones[1]))
+			print("Drone_index", index_drone)
+			print("Car_index", close_index)
+			index_or_condition = ((index_drone-close_index)<10)
+			if ((index_drone<=close_index) or index_or_condition) and not (is_ninety):
+				print("MOVING DRONE")
 
-				drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z = (path[int(close_index+40)][0]), (path[int(close_index+40)][1]),20 #TILL CAR
+				drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z = (path[int(close_index+32)][0]), (path[int(close_index+32)][1]),15+z #TILL CAR
 				print("drone moving to",drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z)
-			if (index_drone<close_index) and not (is_ninety):
+			if ((index_drone<=close_index) or index_or_condition) and not (is_ninety):
+				print("-------------------")
 				print("WAITING for drone")
 				msg.brake = 1
 				msg.throttle = 0
 
+			if ((np.sqrt((pos_drones[0] - drone_msg.pose.position.x)**2+(pos_drones[0] - drone_msg.pose.position.x)**2)) > 1.2 ) and (np.abs(drone_msg.pose.position.x)>0):
+				print("-------------------")
+				print("WAITING for drone mk2")
+				print("drone moving to",drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z)
+
+				drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z = (path[int(close_index+32)][0]), (path[int(close_index+32)][1]),15+z #TILL CAR
+
+				msg.brake = 1
+				msg.throttle = 0
+
+			
 			# if (index_drone>close_index) and not (is_ninety):
 
 
@@ -566,7 +601,7 @@ def my_mainfunc():
 			pub1.publish(drone_msg)
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
-			print(x,y,V,theta)
+			# print(x,y,V,theta)
 
 			x_copy = copy.deepcopy(x)
 			y_copy = copy.deepcopy(y)
@@ -593,7 +628,10 @@ def my_mainfunc():
 			# plt.plot(path[:,0],path[:,1])
 			# plt.arrow(x,y,x + arrow_size*math.cos(theta),y+arrow_size*math.sin(theta), head_width = 7, head_length = 7)
 			# plt.pause(0.0001)
-			if N+(close_index) < total_path_points :                                                                                # Updating P for next N path points and next N reference controls
+			if (N+close_index) < total_path_points :  
+				# print("X and Y before", x,y)
+				# print("CI Before", close_index)
+				# print("TP_before", total_path_points)                                                                              # Updating P for next N path points and next N reference controls
 				P[n_states:n_states*(N+1):n_states] = path[close_index:N+close_index,0] 
 				P[n_states+1:n_states*(N+1):n_states] = path[close_index:N+close_index,1]
 				for i in range(0,N):                                                                
@@ -604,8 +642,10 @@ def my_mainfunc():
 				P[n_states*(N+1)+n_controls*(N-1):n_states*(N+1)+n_controls*(N)] = U_ref   
 
 			else:
-				
-				print ("The end point in inside horizon, slowing down")
+				# print("X and Y after", x,y)
+				# print("N",N, "ci", close_index)
+				# print("TP", total_path_points)
+				# print ("The end point in inside horizon, slowing down")
 				P[n_states:n_states*(N)] = P[n_states*2:n_states*(N+1)]                                                                  
 				P[n_states*(N):n_states*(N+1)-2] = path[(total_path_points-1),0:2]                                                                                                                                                                                                                                                                                                           
 				P[n_states*(N+1)-2] = 0 #V_ref                                                                    #we need to stop the bot at end, hence referance velocity 0 at end                                                                                                                              #
@@ -629,7 +669,7 @@ def my_mainfunc():
 		cte = np.array(cross_track_error)
 		np.save("cross_track_error_world1", cte)
 
-	print ("PATH TRACKED")
+	# print ("PATH TRACKED")
 	msg.throttle = 0                                                                    # stopping the vehicle                       
 	msg.brake = 1 
 	msg.steer = 0
