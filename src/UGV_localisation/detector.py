@@ -43,6 +43,8 @@ dist = []
 
 
 def rgbCallback(data):
+    # print("rgb CALLED")
+
     bridge = CvBridge()
     try:
         cv_image = bridge.imgmsg_to_cv2(data, "bgr8")
@@ -54,6 +56,7 @@ def rgbCallback(data):
 
 
 def depthCallback(data):
+    # print("DEPTH CALLED")
     bridge = CvBridge()
     try:
         cv_depth = bridge.imgmsg_to_cv2(data, "32FC1")
@@ -65,42 +68,45 @@ def depthCallback(data):
 
 
 def poseCallback(data):
+    # print("pose CALLED")
+
     global drone_pose
     drone_pose = data
 
 
-def maskCallback(data):
-    global cv_mask
-    bridge = CvBridge()
-    try:
-        cv_mask = bridge.imgmsg_to_cv2(data, "8UC1")
-    except CvBridgeError as e:
-        print(e)
-    global maskimg, header_maskimg
-    header_maskimg = data.header
-    maskimg = cv_mask
-
+# def maskCallback(data):
+#     global cv_mask
+#     bridge = CvBridge()
+#     try:
+#         cv_mask = bridge.imgmsg_to_cv2(data, "8UC1")
+#     except CvBridgeError as e:
+#         print(e)
+#     global maskimg, header_maskimg
+#     header_maskimg = data.header
+#     maskimg = cv_mask
+#
 
 
 def detector():
     rospy.init_node('detector')
-    global imgimg, im2, drone_pose, cv_mask
+    global imgimg, im2, drone_pose#, cv_mask
     imgimg = None
     im2 = None
     drone_pose = None
-    cv_mask = None
+    # cv_mask = None
+    # print("SUBSCRIBERS CALLED")
     rospy.Subscriber("/depth_camera/depth/image_raw", Image, depthCallback)
     rospy.Subscriber("/depth_camera/rgb/image_raw", Image, rgbCallback)
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, poseCallback)
-    rospy.Subscriber("/lane/mask", Image, maskCallback)
+    # rospy.Subscriber("/lane/mask", Image, maskCallback)
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
-        if imgimg is not None and im2 is not None and drone_pose is not None and cv_mask is not None:
+        if imgimg is not None and im2 is not None and drone_pose is not None :#and cv_mask is not None:
             calculations()
             imgimg = None
             im2 = None
             drone_pose = None
-            cv_mask = None
+            # cv_mask = None
         rate.sleep()
 
 
@@ -109,6 +115,7 @@ def projection(cx, cy, img,
     # Inputs:
     # global quaternion,transform_mat,transform_mat_c_d
     # cx, cy: Points in Pixel coordinates
+    # print("projection CALLED")
 
     cx = cx.reshape(-1)
     cy = cy.reshape(-1)
@@ -151,11 +158,15 @@ def projection(cx, cy, img,
 
 
 def calculations():
+    # print("calculations called")
     bridge = CvBridge()
-    global imgimg, im2, drone_pose, header_im2, header_imgimg
+    global imgimg, im2, drone_pose, header_im2, header_imgimg, ellipse
     image = imgimg
     cv_depth = im2
     font = cv2.FONT_HERSHEY_SIMPLEX
+    # cv2.imshow("input",image)
+    # cv2.waitKey(1)
+    # cv2.imwrite("white_overlay.png",image)
 
 
     blur = cv2.medianBlur(image, 7)
@@ -163,11 +174,13 @@ def calculations():
     gray = cv2.bitwise_not(gray)
 
     # kernel = np.ones((3,3), np.uint8)
-
+    # cv2.imshow("gray_inv",gray)
+    # cv2.waitKey(0)
     # cv_mask_dil = cv2.dilate(cv_mask, kernel, iterations=1)
-    thresh = cv2.threshold(gray, 210, 255, cv2.THRESH_BINARY_INV)[1]
+    thresh = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY)[1]
     # thresh = 255 - cv_mask_dil
-
+    # cv2.imshow("thresh",thresh)
+    # cv2.waitKey(0)
     cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
@@ -210,7 +223,7 @@ def calculations():
             MA = max(MA,1e-6)
             ratioE = ma/MA
             condition = ratioE>1.5 and ratioE<2.4
-            print(ratioE)
+            # print(ratioE)
         else:
             condition = True
 
@@ -236,6 +249,8 @@ def calculations():
             cv2.drawContours(mask_rect, [box], 0, (255), thickness=-1)
             subtracted = cv2.subtract(mask_rect, mask)
             ret2, th2 = cv2.threshold(subtracted, 100, 255, cv2.THRESH_BINARY)
+            # cv2.imshow("subtracted",subtracted)
+            # cv2.waitKey(1)
             # subtracted = cv2.subtract(mask_rect,th2)
             white = np.argwhere(th2 == 255)
             white = np.transpose(white)
@@ -280,8 +295,8 @@ def calculations():
             cv2.circle(image, (int(xfront), int(yfront)), 7, (0, 0,255), -1)
             # cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront), int(yfront)),(0,255,0),thickness = 4)
 
-            cv2.imshow("images", image)
-            cv2.waitKey(1)
+            # cv2.imshow("images", image)
+            # cv2.waitKey(1)
             pub2.publish(bridge.cv2_to_imgmsg(image))
 
             if coord.shape[1] == 3:
@@ -352,6 +367,7 @@ def calculations():
             pub1.publish(pubMsg)
 
 if __name__ == '__main__':
+    # print("MAIN")
     try:
         detector()
     except rospy.ROSInterruptException:
