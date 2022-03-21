@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# from enum import Flag
 from pyexpat import XML_PARAM_ENTITY_PARSING_ALWAYS
 import rospy
 from prius_msgs.msg import Control    
@@ -35,7 +36,7 @@ n_controls = 2
 metres_ahead = 4.0
 
 
-N =15#73                                                                           # Prediction horizon(same as control horizon)
+N =12#73                                                                           # Prediction horizon(same as control horizon)
 error_allowed = 0.05
 U_ref = np.array([0,0], dtype ='f')                                             # U_ref contains referance acc and steer
 V_ref = 0.3#6#10                                                                      # referance velocity 
@@ -51,8 +52,8 @@ V_ref = 0.3#6#10                                                                
 # Q_V = 100#1000000                                                                          
 # Q_theta = 100#200 
 
-Q_x =8500                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 8500 
+Q_x =30500                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 30500 
 Q_V = 10                                                                          
 Q_theta = 1000
 # R1 = 1e+10	#0.5*1e+5#8#1e+15#100000                                                                     # gains to control acc and steer                                                                                                           
@@ -60,8 +61,8 @@ Q_theta = 1000
 
 # R1 = 1e+10
 # R2 = 6*1e+5
-R1 = 6700
-R2 = 9000
+R1 = 111000
+R2 = 59000
 
 error_allowed_in_g = 1e-100                                                   # error in contraints
 pos_drones = np.array([0.0,0.0,0.0])
@@ -83,7 +84,7 @@ y_bound_max = inf
 y_bound_min = -inf 
 V_bound_max = 8#inf                                                                           
 V_bound_min = -8#-inf
-acc_max  = 4.5            
+acc_max  = 2.5            
 theta_bound_max = inf                     
 theta_bound_min = -inf  
 pos_drones = np.array([0.0,0.0,0.0])                                                  # throttle_max = 1                                                                                                                                             
@@ -98,7 +99,8 @@ throttle,steer_input = None,None                                      # (x,y,V,t
 x,y,V,theta,z = 0,0,0,0,0
 x_prev,y_prev,V_prev, theta_prev = 0.0,0.0,0.0,0.0								 
 total_path_points = None   
-is_ninety = True                                                                                                                                
+is_ninety = True
+is_car = True                                                                                                                                
 total_path_points = 0                                                                                                                                                                            
 path = None                                                                                                                               
 
@@ -211,13 +213,14 @@ first = 0
 
 def odomfunc(odom):
 	
-	global x,y,V,theta,is_ninety,x_prev,y_prev,V_prev,theta_prev,z
+	global x,y,V,theta,is_ninety, is_car,x_prev,y_prev,V_prev,theta_prev,z
 	global first
 
 	x = odom.car_state.pose.pose.position.x
 	y = odom.car_state.pose.pose.position.y
 	z = odom.car_state.pose.pose.position.z
 	is_ninety = odom.isCarNinety.data
+	is_car = odom.isMaskDetected.data
 
 	# theta_prev1 = theta
 
@@ -229,12 +232,18 @@ def odomfunc(odom):
 	roll,pitch,yaw = euler_from_quaternion(quaternions_list)
 	theta = yaw
 
+	
+
 	if np.abs(x)<0.001:
 		# print("PREV", x)
 		x,y,V,theta = x_prev, y_prev,V_prev,theta_prev
 		# print("AFTER",x)  
 	else:
 		x_prev,y_prev,V_prev,theta_prev = x,y,V, theta_prev  
+	
+	if (np.abs(theta - theta_prev) > 0.3):
+		theta = theta_prev
+
   
 	if np.abs(V)<0.001:
 		# print("PREV", x)
@@ -248,8 +257,8 @@ def odomfunc(odom):
 		# print("AFTER",x)  
 	else:
 		theta_prev = theta
-	if (abs(theta - theta_prev) > 0.3):
-		theta = theta_prev
+
+	# if np.abs(theta_prev-theta)
 
 
 
@@ -264,7 +273,7 @@ slope_throttle = 1
 flag_drone_wait = 0
 
 def my_mainfunc():
-	global is_ninety, x_prev,y_prev,V_prev,x,y,V,brake_vals,pos_drones,flag_drone_wait,z
+	global is_ninety, is_car, x_prev,y_prev,V_prev,x,y,V,brake_vals,pos_drones,flag_drone_wait,z
 	global path
 	rospy.init_node('mpc_multipleShooting_pathTracking_carDemo', anonymous=True)
 	# rospy.Subscriber('/base_pose_ground_truth' , Odometry, odomfunc)   
@@ -431,6 +440,11 @@ def my_mainfunc():
 
 	initial_con = ca.DM.zeros((n_controls*N,1))                                                                         #initial search values of control matrix are zero
 
+	run_drn_flag = True
+	run_car_flag = False
+	drn_ref_pt_idx = 1
+
+	
 
 	try:
 		while ( ca.norm_2( P[0:n_states-1].reshape((n_states-1,1)) - X_target[0:n_states-1] ) > error_allowed  ) :       
@@ -486,12 +500,14 @@ def my_mainfunc():
 				# throttle = -throttle
 				msg.throttle = 0.0                                  
 				msg.brake = -throttle  												#brake
+
+
 			# 	msg.steer = steer_input
 			# 	msg.shift_gears =2
 			
 			# if delta_z 
-			# if V>7.5:
-			# 	msg.brake  = 0.35
+			if V>4.5:
+				msg.brake  = 0.35
 
 			# if not (is_ninety):
 			# 	# brake_vals +=1
@@ -567,13 +583,14 @@ def my_mainfunc():
 			#MOVE DRONE
 			close_index = KDTree(path).query(np.array([x,y]))[1]
 			index_drone = KDTree(path).query(np.array([pos_drones[0],pos_drones[1]]))[1]
-			print("UGV Pose",(x,y))
-			print("UAV Pose",(pos_drones[0],pos_drones[1]))
-			print("Drone_index", index_drone)
-			print("Car_index", close_index)
+			# print("UGV Pose",(x,y))
+			# print("UAV Pose",(pos_drones[0],pos_drones[1]))
+			# print("Drone_index", index_drone)
+			# print("Car_index", close_index)
 			index_or_condition = ((index_drone-close_index)<10)
 			index_ahead = 45
 			drone_height = 18
+			
 			if ((index_drone<=close_index) or index_or_condition) and not (is_ninety):
 				print("MOVING DRONE")
 
@@ -588,7 +605,7 @@ def my_mainfunc():
 			else:
 				msg.brake = 0
 
-			if ((np.sqrt((pos_drones[0] - drone_msg.pose.position.x)**2+(pos_drones[0] - drone_msg.pose.position.x)**2)) > 0.9 ) and (np.abs(drone_msg.pose.position.x)>0):
+			if ((np.sqrt((pos_drones[0] - drone_msg.pose.position.x)**2+(pos_drones[1] - drone_msg.pose.position.y)**2)) > 0.7 ) and (np.abs(drone_msg.pose.position.x)>0):
 				print("-------------------")
 				print("WAITING for drone mk2")
 				# print("drone moving to",drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z)
@@ -597,6 +614,89 @@ def my_mainfunc():
 
 				msg.brake = 1
 				msg.throttle = 0
+
+			#####
+			# if not run_car_flag:
+			# 	print("Running drone")
+			# 	msg.brake = 1
+			# 	msg.throttle = 0
+
+			# 	factor_ = 10
+			# 	print("drn_ref_pt_idx", drn_ref_pt_idx)
+				
+			# 	if (is_car and not is_ninety) and (index_drone<close_index) and run_drn_flag:
+			# 		print("Running drone when car in boundary and car ahead")
+					
+					
+			# 		drone_msg.pose.position.x = path[drn_ref_pt_idx*factor_][0]
+			# 		drone_msg.pose.position.y = path[drn_ref_pt_idx*factor_][1]
+			# 		drone_msg.pose.position.z = drone_height+z
+			# 		## while publish drone pts iterative
+			# 		if (np.sqrt((pos_drones[0] - drone_msg.pose.position.x)**2+(pos_drones[1] - drone_msg.pose.position.y)**2)) > 1.5 :
+			# 			print("Going to the new index")
+						
+			# 		else:
+			# 			drn_ref_pt_idx +=1
+			# 			print("Increasing index")
+
+			# 		run_drn_flag = True
+
+			# 	if (is_car and is_ninety) or run_drn_flag:
+			# 		print("Running drone when car in boundary and car center")
+
+			# 		drone_msg.pose.position.x = path[drn_ref_pt_idx*factor_][0]
+			# 		drone_msg.pose.position.y = path[drn_ref_pt_idx*factor_][1]
+			# 		drone_msg.pose.position.z = drone_height+z
+
+			# 		## while publish drone pts iterative
+			# 		if (np.sqrt((pos_drones[0] - drone_msg.pose.position.x)**2+(pos_drones[1] - drone_msg.pose.position.y)**2)) > 1.5:
+			# 			print("Going to the new index")
+						
+			# 		else:
+			# 			drn_ref_pt_idx +=1
+			# 			print("Increasing index")
+
+			# 		run_drn_flag = True
+
+			# 	# print("c1", is_car , (not is_ninety))
+			# 	# print("c2",run_drn_flag)
+			# 	# print("c3",index_drone,close_index)
+			# 	if (not is_ninety) and run_drn_flag and (index_drone>close_index):
+			# 		print("Stopping drone")
+
+			# 		run_drn_flag = False
+			# 		run_car_flag = True
+
+			# if not run_drn_flag:
+			# 	print("Running car")
+			# 	if run_car_flag:
+					
+			# 		print("Running car mpc")
+			# 		# throttle = acc / throttle_constant
+			# 		# steer_input = steer/steer_constant
+
+			# 		# msg.throttle = throttle                                  
+			# 		# msg.brake = 0.0 
+			# 		# msg.steer = steer_input
+			# 		# msg.shift_gears =2
+
+			# 		# if throttle < 0:
+			# 		# 	# msg.shift_gears =3                                              # reverse gear
+			# 		# 	# throttle = -throttle
+			# 		# 	msg.throttle = 0.0                                  
+			# 		# 	msg.brake = -throttle  		
+
+			# 		## run mpc
+
+			# 		run_car_flag = True
+
+			# 	if ( not is_ninety) and close_index>index_drone:
+			# 		print("Stopping car")
+			# 		msg.brake = 1
+			# 		run_car_flag = False
+			# 		run_drn_flag = True
+
+			#####
 			
 
 			
@@ -604,7 +704,8 @@ def my_mainfunc():
 
 
 
-			print("THROTLE", msg.throttle, "BRAKE", msg.brake)
+			# print("THROTLE", msg.throttle, "BRAKE", msg.brake)
+			print("THETA", theta)
 
 			pub1.publish(drone_msg)
 			instance.publish(msg)

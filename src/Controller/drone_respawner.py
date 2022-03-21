@@ -34,7 +34,7 @@ def main():
     i=0
 
     global flag
-    while flag == 0 and not rospy.is_shutdown():
+    while flag == 0 and not rospy.is_shutdown() and i<100:
        
         msg = PoseStamped()
         msg.header.seq = i
@@ -42,7 +42,7 @@ def main():
         msg.pose.position.y = 0
         msg.pose.position.z = 18 
         pub1.publish(msg)
-        
+        i+=1
         rate.sleep()
 
     print("exiting")

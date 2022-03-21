@@ -423,14 +423,17 @@ def calculations():
     # if cv_mask != None:
     # Taking a matrix of size 5 as the kernel
     
-    kernel = np.ones((3,3), np.uint8)
     
-    cv_mask_dil = cv2.dilate(cv_mask, kernel, iterations=1)
-    
-    thresh = 255 - cv_mask_dil
-    # cv2.imshow("mask_inv",thresh)
-    # cv2.imwrite("mask_inv.png",thresh)
-    # cv2.waitKey(0)
+    thresh = 255 - cv_mask
+
+    # kernel = np.ones((5,5), np.uint8)
+    # cv2.imshow("thresh original",thresh)
+
+    # thresh = cv2.erode(thresh, kernel, iterations=2)
+
+    # cv2.imshow("thresh corrected",thresh)
+
+    # cv2.waitKey(1)
     # else:
     #     return
 
@@ -480,7 +483,7 @@ def calculations():
             x = int(x)
             y = int(y)
 
-            ratioE = ma/MA
+            ratioE = ma/max(MA, 1e-6)
             condition = ratioE>1.5 and ratioE<2.4
             print(ratioE)
         else:
@@ -651,14 +654,18 @@ def calculations():
                 # cv2.circle(image,(int(cx),int(cy)),7,(255,0,127),-1)
                 # cv2.circle(image,(int(xtop),int(ytop)),7,(255,0,0),-1)
                 # cv2.circle(image,(int(xbot),int(ybot)),7,(0,255,255),-1)
-            if cx>32 and cx<608 and cy>24 and cy<456:
+            
+            """
+            HERE
+            """
+            if cx>64 and cx<576 and cy>75 and cy<410:
                 pubMsg.isCarNinety.data = True
 
 
             coord = projection(np.array([yfront,cy,yback]), np.array([xfront,cx,xback]), cv_depth, drone_pose)
             # cv2.circle(image,(int(cx),int(cy)),7,(0,0,255),-1)
             # cv2.circle(image, (int(xfront), int(yfront)), 7, (0, 0,255), -1)
-            # cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront), int(yfront)),(0,255,0),thickness = 4)
+            cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront), int(yfront)),(0,255,0),thickness = 4)
             # normal = gradients(cy+35,cx+35)
             # normal2 = gradients(cy + 70,cx+70)
             # print("Should be 0")
@@ -750,9 +757,16 @@ def calculations():
 
 
                 pubMsg.car_state.header = header_im2
-                pubMsg.car_state.pose.pose.position.x = coord[0, 2]
-                pubMsg.car_state.pose.pose.position.y = coord[1, 2]
-                pubMsg.car_state.pose.pose.position.z = coord[2, 2]
+
+                # publishing back point
+                # pubMsg.car_state.pose.pose.position.x = coord[0, 2]
+                # pubMsg.car_state.pose.pose.position.y = coord[1, 2]
+                # pubMsg.car_state.pose.pose.position.z = coord[2, 2]
+
+                # publishing front point
+                pubMsg.car_state.pose.pose.position.x = coord[0, 0]
+                pubMsg.car_state.pose.pose.position.y = coord[1, 0]
+                pubMsg.car_state.pose.pose.position.z = coord[2, 0]
 
                 pubMsg.car_centre.x = coord[0,1]
                 pubMsg.car_centre.y = coord[1,1]
