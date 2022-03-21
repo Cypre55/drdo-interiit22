@@ -471,7 +471,7 @@ def calculations():
         # ellipse = cv2.fitEllipse(approx)
         ratioE = 0
         # print(len(approx))
-        print(approx.shape)
+        # print(approx.shape)
         if (approx.shape[0] >= 5):
             (x, y), (MA, ma), angle = cv2.fitEllipse(approx)
 
@@ -479,7 +479,9 @@ def calculations():
             # area = cv2.contourArea(cnt)
             x = int(x)
             y = int(y)
-
+            if MA==0:
+                condition = False
+            
             ratioE = ma/MA
             condition = ratioE>1.5 and ratioE<2.4
             print(ratioE)
