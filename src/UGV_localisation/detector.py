@@ -157,11 +157,16 @@ def calculations():
     cv_depth = im2
     font = cv2.FONT_HERSHEY_SIMPLEX
 
-    kernel = np.ones((3,3), np.uint8)
 
-    cv_mask_dil = cv2.dilate(cv_mask, kernel, iterations=1)
+    blur = cv2.medianBlur(image, 7)
+    gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+    gray = cv2.bitwise_not(gray)
 
-    thresh = 255 - cv_mask_dil
+    # kernel = np.ones((3,3), np.uint8)
+
+    # cv_mask_dil = cv2.dilate(cv_mask, kernel, iterations=1)
+    thresh = cv2.threshold(gray, 210, 255, cv2.THRESH_BINARY_INV)[1]
+    # thresh = 255 - cv_mask_dil
 
     cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
@@ -202,7 +207,7 @@ def calculations():
             y = int(y)
             if MA==0:
                 condition = False
-            
+            MA = max(MA,1e-6)
             ratioE = ma/MA
             condition = ratioE>1.5 and ratioE<2.4
             print(ratioE)
@@ -229,7 +234,7 @@ def calculations():
 
             mask_rect = np.zeros(img.shape, np.uint8)
             cv2.drawContours(mask_rect, [box], 0, (255), thickness=-1)
-            subtracted = cv2.subtract(mask_rect, cv_mask)
+            subtracted = cv2.subtract(mask_rect, mask)
             ret2, th2 = cv2.threshold(subtracted, 100, 255, cv2.THRESH_BINARY)
             # subtracted = cv2.subtract(mask_rect,th2)
             white = np.argwhere(th2 == 255)
@@ -255,24 +260,24 @@ def calculations():
 
                 # cv2.line(image, (int(cx), int(cy)), (int(xtop), int(ytop)), (0, 0, 255), 3)
                 # angle = np.arctan2(ybot - cy, xbot - cx)
-                xback = xbot
-                yback = ybot
-                xfront = xtop
-                yfront = ytop
+                xfront = xbot
+                yfront = ybot
+                xback = xtop
+                yback = ytop
             else:
                 # cv2.line(image, (int(xbot), int(ybot)), (int(cx), int(cy)), (0, 0, 255), 3)
                 # angle = np.arctan2(ytop - cy, xtop - cx)
-                xback = xtop
-                yback = ytop
-                xfront = xbot
-                yfront = ybot
+                xfront = xtop
+                yfront = ytop
+                xback = xbot
+                yback = ybot
             if cx>32 and cx<608 and cy>24 and cy<456:
                 pubMsg.isCarNinety.data = True
 
 
             coord = projection(np.array([yfront,cy,yback]), np.array([xfront,cx,xback]), cv_depth, drone_pose)
             # cv2.circle(image,(int(cx),int(cy)),7,(0,0,255),-1)
-            # cv2.circle(image, (int(xfront), int(yfront)), 7, (0, 0,255), -1)
+            cv2.circle(image, (int(xfront), int(yfront)), 7, (0, 0,255), -1)
             # cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront), int(yfront)),(0,255,0),thickness = 4)
 
             cv2.imshow("images", image)
