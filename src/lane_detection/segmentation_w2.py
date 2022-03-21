@@ -26,6 +26,10 @@ mask=np.zeros((480,640))
 lane_mask=np.zeros((480,640),dtype=np.uint8)
 final_mask=np.zeros((480,640),dtype=np.uint8)
 drone_pose=PoseStamped()
+
+DP_THRESHOLD = 0.99
+REJECT_AREA_THRESHOLD = 50000
+
 def fit_spline(x,y):
     resolution = 0.1
     path_x=[]
@@ -120,6 +124,50 @@ def project_normals(norms):
     # new_norms=new_norms.reshape((2,3,3))
     return new_norms
 
+def dist1(arrx, arry, i, j):
+    return np.sqrt((arrx[i]-arrx[j])**2 + (arry[i]-arry[j])**2)
+
+def orderedList(arrx, arry):
+    x = []
+    y = []
+    
+    isVisited = [False]*len(arrx)
+
+    diffx = np.max(arrx) - np.min(arrx)
+    diffy = np.max(arry) - np.min(arry)
+    if(diffx > diffy):
+        i=0
+        start = np.argmin(arrx)
+        end = np.argmax(arrx)
+    else:
+        i=1
+        start = np.argmin(arry)
+        end = np.argmax(arry)
+
+    isVisited[start] = True
+    x.append(arrx[start])
+    y.append(arry[start])
+    visited = 1
+    # plt.ion()
+    while(visited < len(arrx)):
+        if(start == end):
+            break
+        minDist = 10000000
+        minIndex = -1
+        for i in range(len(arrx)):
+            if(isVisited[i] == False):
+                d = dist1(arrx, arry, start, i)
+                if(d < minDist):
+                    minDist = d
+                    minIndex = i
+        isVisited[minIndex] = True
+        x.append(arrx[minIndex])
+        y.append(arry[minIndex])
+        visited += 1
+        start = minIndex
+    
+    return x,y
+
 def find_path_without_car(dep,rgb):
     global lane_mask,pre_est,final_mask
     norms=find_grad_sobel(dep)
@@ -127,7 +175,7 @@ def find_path_without_car(dep,rgb):
     norms=project_normals(norms)
     dp=np.sum(norms*pre_est,axis=2)
     dp[np.isnan(dp)] = 0
-    lane=dp>0.99
+    lane=dp>DP_THRESHOLD
     lane=binary_erosion(lane,disk(5))
     lane=np.uint8(lane)
     (numLabels, labels, stats, centroids)=cv.connectedComponentsWithStats(lane,4)
@@ -140,20 +188,27 @@ def find_path_without_car(dep,rgb):
     lane=labels==idx
     lane_mask=255*np.uint8(lane)
 
-    if not np.any(lane) or np.sum(lane)<50000:
+    if not np.any(lane) or np.sum(lane)<REJECT_AREA_THRESHOLD:
         print("Rejected patch : "+str(np.sum(lane)))
         return None
     pre_est=np.mean(norms[lane], axis=0)
     edges=skeletonize(lane^binary_erosion(lane,disk(5)))
-    _,labels=cv.connectedComponents(np.uint8(edges),8)
-    # cv.imshow("dshjaf",255*np.uint8(edges))
-    # cv.waitKey(1)
-    if len(np.unique(labels))<2:
+    (numLabels, labels, stats, centroids)=cv.connectedComponentsWithStats(np.uint8(edges),8)
+    label_data=np.zeros((numLabels-1,2),dtype=np.int32)
+    if len(label_data)<1:
         return None
-    if len(np.unique(labels))==2:
+    for i in range(1,numLabels):
+        label_data[i-1]=[i, stats[i,cv.CC_STAT_AREA]]
+    label_data=label_data[label_data[:,1].argsort()]
+    label_data=label_data[::-1]
+    # print(label_data)
+    # print(label_data.shape)
+    # cv.imshow("dshjaf",255*np.uint8(labels==label_data[0,0]))
+    # cv.imshow("dshjaf1",255*np.uint8(labels==label_data[1,0]))
+    # cv.waitKey(1)
+    if len(label_data)==1:
         ## check for closed contour
-        x,y=np.where(labels==1)
-        # print(x,y)
+        x,y=np.where(labels==label_data[0,0])
         lx,ly=fit_spline(x,y)
         if lx is None:
             return None
@@ -175,20 +230,39 @@ def find_path_without_car(dep,rgb):
         x,y=np.where(zz==1)
         rx,ry=fit_spline(x,y)
     else:
-        x,y=np.where(labels==1)
+        x,y=np.where(labels==label_data[0,0])
         lx,ly=fit_spline(x,y)
         if lx is None:
             return None
-        x,y=np.where(labels==2)
+        x,y=np.where(labels==label_data[1,0])
         rx,ry=fit_spline(x,y)
     if rx is None:
         return None
-    if lx[0]>lx[-1]:
-        lx=lx[::-1]
-        ly=ly[::-1]
-    if rx[0]>rx[-1]:
-        rx=rx[::-1]
-        ry=ry[::-1]
+    # if lx[0]>lx[-1]:
+    #     lx=lx[::-1]
+    #     ly=ly[::-1]
+    # if rx[0]>rx[-1]:
+    #     rx=rx[::-1]
+    #     ry=ry[::-1]
+    # print(len(lx))
+    # print(len(rx))
+    
+    # lx,ly=orderedList(lx,ly)
+    # rx,ry=orderedList(rx,ry)
+    # lx=np.array(lx)
+    # ly=np.array(ly)
+    # rx=np.array(rx)
+    # ry=np.array(ry)
+
+    # if(len(lx)<len(rx)):
+    #     mask=np.random.choice(len(rx),len(lx),replace=False)
+    #     rx=rx[mask]
+    #     ry=ry[mask]
+    # else:
+    #     mask=np.random.choice(len(lx),len(rx),replace=False)
+    #     lx=lx[mask]
+    #     ly=ly[mask]
+
     mx,my=(lx+rx)/2,(ly+ry)/2
     mx1,my1=fit_spline(mx,my)
     mx1=np.int32(mx1)
@@ -381,10 +455,12 @@ def segmenter():
             pub.publish(bridge.cv2_to_imgmsg(np.uint8(final_mask)))
         else:
             traj=JointTrajectory()
-            traj.joint_names="BACKTRACK"
+            traj.joint_names=["BACKTRACK"]
             traj.header.stamp=rospy.Time.now()
             mid_pub.publish(traj)
         plt.ion()
+        plt.xlim([0,640])
+        plt.ylim([0,480])
         plt.show()
 
 if __name__ == '__main__':

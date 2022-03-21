@@ -486,9 +486,11 @@ def build_graph():
 
 def center_GPS_cb(data):
     global joint_traj
-    if data.joint_names == "BACKTRACK":
-        backtrack_graph()
-        joint_traj = None
+    if data.joint_names[0] == "BACKTRACK":
+        print("Recevied Message to BACKTRACK")
+        if not reaching_flag:
+            backtrack_graph()
+            joint_traj = None
         return
     joint_traj = np.array([np.array(i.positions) for i in data.points])
 
