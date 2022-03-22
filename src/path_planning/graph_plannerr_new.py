@@ -503,12 +503,13 @@ def current_uav_pose_cb(data):
 
     if len(graph.arr) == 0:
         # print("Root")
-        start_ugv = current_uav_pose.pose
-        start_ugv.position.z -= UAV_HEIGHT
-        start_ugv = np.array([start_ugv.position.x, start_ugv.position.y, start_ugv.position.z])
-        add_node_to_graph(start_ugv)
-        reaching_flag = True
-        # print("Done Root")
+        if took_off:
+            start_ugv = current_uav_pose.pose
+            start_ugv.position.z -= UAV_HEIGHT
+            start_ugv = np.array([start_ugv.position.x, start_ugv.position.y, start_ugv.position.z])
+            add_node_to_graph(start_ugv)
+            reaching_flag = True
+            # print("Done Root")
     
     # Reached Waypoint
     arr_1 = np.array([uav_wp.pose.position.x, uav_wp.pose.position.y, uav_wp.pose.position.z])
@@ -532,6 +533,9 @@ def car_state_cb(data):
     car_back = np.array([[data.car_back.x, data.car_back.y]])
     car_front = np.array([[data.car_front.x, data.car_front.y]])
 
+def took_off_cb(data):
+    global took_off
+    took_off = data.data
 
 def graph_planner():
     rospy.init_node('graph_planner')
@@ -552,12 +556,16 @@ def graph_planner():
     center_GPS_sub = rospy.Subscriber("/lane/mid", JointTrajectory, center_GPS_cb)
     current_uav_pose_sub = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, current_uav_pose_cb)
     car_state_sub = rospy.Subscriber("/car_state/complete", customMessage, car_state_cb)
+    took_off_sub = rospy.Subscriber("/took_off", Bool, took_off_cb)
 
     global graph
     graph = Graph()
 
     global uav_wp
     uav_wp = PoseStamped()
+
+    global took_off
+    took_off = None
 
     global start_uav, start_ugv
     start_uav = Pose()
@@ -588,8 +596,7 @@ def graph_planner():
 
     rate = rospy.Rate(10.0)
     while not rospy.is_shutdown():
-        if joint_traj is not None and current_uav_xyz is not None:
-
+        if took_off is not None and took_off == True and joint_traj is not None and current_uav_xyz is not None:
 
             build_graph()
             is_car = None
