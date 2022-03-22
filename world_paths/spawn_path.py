@@ -13,15 +13,15 @@ from tf.transformations import quaternion_from_euler
 
 f = open('cube.urdf', 'r')
 model_xml = f.read()
-path_file = np.load('world2_gazebo_rohitS.npy') # Name of path file
-# path_file = path_file[100:, :]
+path_file = np.load('world2_gazebo_satwik.npy') # Name of path file
+path_file = path_file[310:, :]
 print(path_file.shape)
 reference_frame = ''                            # Change to 'iris' to plot the path in local iris frame. Iris frame not working tho.
 rosns = rospy.get_namespace()
 gzns = '/gazebo'
 
 max_cnt = 0
-iteri = 1
+iteri = 20
 for cnt in range(path_file.shape[0]/iteri):        # taking every 10th point. Adjust frequency based on number of points in path file
     model = 'cube' + str(cnt)                   # Change 'cube' to new name if you are plotting points in a world which already has a plot coz model name errors
     if cnt*iteri < path_file.shape[0]:

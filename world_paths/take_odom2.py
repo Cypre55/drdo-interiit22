@@ -74,7 +74,7 @@ def main():
 
 		path_taken = np.concatenate([path_taken_X,path_taken_Y, path_taken_Z], axis = 1)
 
-		np.save("world2_gazebo_rohitS", path_taken)     # change name of save file
+		np.save("world2_gazebo_satwik.npy", path_taken)     # change name of save file
 
 
 if __name__ == '__main__':
