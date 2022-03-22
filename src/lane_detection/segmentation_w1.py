@@ -208,16 +208,17 @@ def poseback(data):
 
 def publish_traj(pub,cx,cy,name):
     if name=="LEFT":
-        plt.clf()
+        pass
+        # plt.clf()
     if name=="MID":
         sd=[np.std(cx),np.std(cy)]
-        plt.text(0,0,sd[0],fontsize=22)
-        plt.text(0,25,sd[1],fontsize=22)
-    plt.plot(cy,-cx)
-    plt.draw()
-    plt.xlim([0, 640])
-    plt.ylim([-480, 0])
-    plt.pause(0.000000000001)
+        # plt.text(0,0,,sd[1],fontsize=22)
+    # plt.plot(cy,-cxsd[0],fontsize=22)
+        # plt.text(0,25)
+    # plt.draw()
+    # plt.xlim([0, 640])
+    # plt.ylim([-480, 0])
+    # plt.pause(0.000000000001)
     global dep
     path=projection(cx,cy,dep)[:3]
     traj=JointTrajectory()
