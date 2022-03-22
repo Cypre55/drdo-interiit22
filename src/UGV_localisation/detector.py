@@ -74,39 +74,39 @@ def poseCallback(data):
     drone_pose = data
 
 
-# def maskCallback(data):
-#     global cv_mask
-#     bridge = CvBridge()
-#     try:
-#         cv_mask = bridge.imgmsg_to_cv2(data, "8UC1")
-#     except CvBridgeError as e:
-#         print(e)
-#     global maskimg, header_maskimg
-#     header_maskimg = data.header
-#     maskimg = cv_mask
-#
+def maskCallback(data):
+    global cv_mask
+    bridge = CvBridge()
+    try:
+        cv_mask = bridge.imgmsg_to_cv2(data, "8UC1")
+    except CvBridgeError as e:
+        print(e)
+    global maskimg, header_maskimg
+    header_maskimg = data.header
+    maskimg = cv_mask
+
 
 
 def detector():
     rospy.init_node('detector')
-    global imgimg, im2, drone_pose#, cv_mask
+    global imgimg, im2, drone_pose, cv_mask
     imgimg = None
     im2 = None
     drone_pose = None
-    # cv_mask = None
+    cv_mask = None
     # print("SUBSCRIBERS CALLED")
     rospy.Subscriber("/depth_camera/depth/image_raw", Image, depthCallback)
     rospy.Subscriber("/depth_camera/rgb/image_raw", Image, rgbCallback)
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, poseCallback)
-    # rospy.Subscriber("/lane/mask", Image, maskCallback)
+    rospy.Subscriber("/lane/mask", Image, maskCallback)
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
-        if imgimg is not None and im2 is not None and drone_pose is not None :#and cv_mask is not None:
+        if imgimg is not None and im2 is not None and drone_pose is not None and cv_mask is not None:
             calculations()
             imgimg = None
             im2 = None
             drone_pose = None
-            # cv_mask = None
+            cv_mask = None
         rate.sleep()
 
 
@@ -188,13 +188,9 @@ def calculations():
     gray = cv2.bitwise_not(gray)
 
     # kernel = np.ones((3,3), np.uint8)
-    # cv2.imshow("gray_inv",gray)
-    # cv2.waitKey(0)
     # cv_mask_dil = cv2.dilate(cv_mask, kernel, iterations=1)
     thresh = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY)[1]
     # thresh = 255 - cv_mask_dil
-    # cv2.imshow("thresh",thresh)
-    # cv2.waitKey(0)
     cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
@@ -288,14 +284,12 @@ def calculations():
             if dist1 > dist2:
 
                 # cv2.line(image, (int(cx), int(cy)), (int(xtop), int(ytop)), (0, 0, 255), 3)
-                # angle = np.arctan2(ybot - cy, xbot - cx)
                 xfront = xbot
                 yfront = ybot
                 xback = xtop
                 yback = ytop
             else:
                 # cv2.line(image, (int(xbot), int(ybot)), (int(cx), int(cy)), (0, 0, 255), 3)
-                # angle = np.arctan2(ytop - cy, xtop - cx)
                 xfront = xtop
                 yfront = ytop
                 xback = xbot
@@ -381,7 +375,6 @@ def calculations():
             pub1.publish(pubMsg)
 
 if __name__ == '__main__':
-    # print("MAIN")
     try:
         detector()
     except rospy.ROSInterruptException:
