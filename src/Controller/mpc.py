@@ -27,7 +27,7 @@ pi = math.pi
 inf = np.inf
 
 cross_track_error = []
-
+path_to_store = []
 """# variable parameters 
 """
 n_states = 4                                                                    
@@ -43,12 +43,12 @@ V_ref = 0.3#6#10                                                                
 
 
 
-Q_x =32500                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 32500 
+Q_x =41500                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 41500 
 Q_V = 10                                                                          
-Q_theta = 1000
+Q_theta = 5000
 
-R1 = 191000
+R1 = 201000
 R2 = 55000
 
 
@@ -269,6 +269,7 @@ slope_throttle = 1
 flag_drone_wait = 0
 
 def my_mainfunc():
+	
 	global is_ninety, is_car, x_prev,y_prev,V_prev,x,y,V,brake_vals,pos_drones,flag_drone_wait,z
 	global path
 	rospy.init_node('mpc_multipleShooting_pathTracking_carDemo', anonymous=True)
@@ -296,7 +297,7 @@ def my_mainfunc():
 
 	total_path_points = (path[:,0]).size
 	 
-
+	print("Total", path.shape)
 	#rospy.Subscriber('/astroid_path ', Path, pathfunc)
 	# pathfunc()
 
@@ -704,8 +705,9 @@ def my_mainfunc():
 
 
 			# print("THROTLE", msg.throttle, "BRAKE", msg.brake)
-			print("THETA", theta,x,y)
-
+			# print("THETA", theta,x,y)
+			print("CAR INDEX", close_index)
+			print("Total", path.shape)
 			pub1.publish(drone_msg)
 			instance.publish(msg)
 			#print ('   Velocity (in m/s)  = ',round(V,2))
@@ -714,7 +716,8 @@ def my_mainfunc():
 			x_copy = copy.deepcopy(x)
 			y_copy = copy.deepcopy(y)
 			# print("x,y before : ",x,y)
-			cross_track_error.append(KDTree(path).query(np.array([x_copy,y_copy]))[0])
+			path_to_store.append([x,y])
+			# cross_track_error.append(KDTree(path).query(np.array([x_copy,y_copy]))[0])
 			# print("x,y after : ",x,y)
 
 			P[0:n_states] = [x,y,V,theta] 
@@ -774,8 +777,8 @@ def my_mainfunc():
 	except KeyboardInterrupt:
 
 		print("saving")
-		cte = np.array(cross_track_error)
-		np.save("cross_track_error_world1", cte)
+		cte = np.array(path_to_store)
+		np.save("path_followed", cte)
 
 	# print ("PATH TRACKED")
 	msg.throttle = 0                                                                    # stopping the vehicle                       
