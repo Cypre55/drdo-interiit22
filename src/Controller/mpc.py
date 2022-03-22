@@ -294,7 +294,7 @@ def my_mainfunc():
 
 
 	# path = np.load("Full_World1_RUN.npy")
-	path = np.load("sexy_path.npy").T[20:,0:2]
+	path = np.load("/home/theabyss/interiit_new_ws/src/drdo_interiit22/src/Controller/sexy_path.npy").T[20:,0:2]
 	
 
 	total_path_points = (path[:,0]).size
