@@ -154,16 +154,16 @@ def add_node_to_graph(point):
         while (len(graph.last_nodes) != DEQUE_SIZE):
             graph.last_nodes.pop(0)
 
-    if (len(graph.last_nodes) == DEQUE_SIZE):
-    	quat = getYawFromSpline()
-    	graph.arr[graph.current].UAV.orientation.x = quat[0]
-    	graph.arr[graph.current].UAV.orientation.y = quat[1]
-    	graph.arr[graph.current].UAV.orientation.z = quat[2]
-    	graph.arr[graph.current].UAV.orientation.w = quat[3]
-    	graph.arr[graph.current].UGV.orientation.x = quat[0]
-    	graph.arr[graph.current].UGV.orientation.y = quat[1]
-    	graph.arr[graph.current].UGV.orientation.z = quat[2]
-    	graph.arr[graph.current].UGV.orientation.w = quat[3]
+    # if (len(graph.last_nodes) == DEQUE_SIZE):
+    # 	quat = getYawFromSpline()
+    # 	graph.arr[graph.current].UAV.orientation.x = quat[0]
+    # 	graph.arr[graph.current].UAV.orientation.y = quat[1]
+    # 	graph.arr[graph.current].UAV.orientation.z = quat[2]
+    # 	graph.arr[graph.current].UAV.orientation.w = quat[3]
+    # 	graph.arr[graph.current].UGV.orientation.x = quat[0]
+    # 	graph.arr[graph.current].UGV.orientation.y = quat[1]
+    # 	graph.arr[graph.current].UGV.orientation.z = quat[2]
+    # 	graph.arr[graph.current].UGV.orientation.w = quat[3]
 
     
     with open('ugv_waypoints.npy', 'wb') as f:

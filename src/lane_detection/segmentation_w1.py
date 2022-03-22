@@ -27,7 +27,7 @@ lane_mask=np.zeros((480,640),dtype=np.uint8)
 final_mask=np.zeros((480,640),dtype=np.uint8)
 drone_pose=PoseStamped()
 
-DP_THRESHOLD = 0.997
+DP_THRESHOLD = 0.9975
 REJECT_AREA_THRESHOLD = 50000
 
 def fit_spline(x,y):
