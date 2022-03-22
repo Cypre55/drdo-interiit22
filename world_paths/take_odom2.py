@@ -35,46 +35,27 @@ def pos_callback2(Odometry):
 
 
 def main():
-	# f = open("x_raw_path", "w")
-	# a = open("y_raw_path", "w")
-
-	# f2 = open("x_raw_path2", "w")
-	# a2 = open("y_raw_path2", "w")
-
 	time_old = time.time()
 	rospy.init_node('pure_pursuit',anonymous=True)
 	#rospy.Subscriber('/base_pose_ground_truth' , Odometry, pos_callback)	#Car's Odometry data
 	rospy.Subscriber('/mavros/local_position/pose' , PoseStamped, pos_callback)	#drone's Odometry data
 	rospy.Subscriber('/gazebo/model_states' , ModelStates, pos_callback2)	#drone's Odometry data
 
-
-
 	path_taken_x = []
 	path_taken_y = []
 	path_taken_z = []
 
-
-	rate=rospy.Rate(10)
+	rate=rospy.Rate(100)
 
 	try:
 		while not rospy.is_shutdown():
 			time_now = time.time()
-			if time_now - time_old >0.5:
+			if time_now - time_old > 0.1 :
 				print(prius_pos2[0])
-				# f.write(str(prius_pos[0]))
-				# f.write(",")
-				# a.write(str(prius_pos[1]))
-				# a.write(",")
-
-				# f2.write(str(prius_pos2[0]))
-				# f2.write(",")
-				# a2.write(str(prius_pos2[1]))
-				# a2.write(",")
 
 				path_taken_x.append(prius_pos2[0])
 				path_taken_y.append(prius_pos2[1])
 				path_taken_z.append(prius_pos2[2])
-
 
 				time_old = time_now
 
@@ -93,13 +74,7 @@ def main():
 
 		path_taken = np.concatenate([path_taken_X,path_taken_Y, path_taken_Z], axis = 1)
 
-		np.save("path_taken_world3_gazebo_coord", path_taken)
-
-	# path_taken_X = np.array(path_taken_x)
-	# path_taken_Y = np.array(path_taken_y)
-	# path_taken = np.concatenate([path_taken_X,path_taken_Y], axis = 1)
-
-	# np.save("path_taken_world1_gazebo_coord", path_taken)
+		np.save("world2_gazebo_rohitS", path_taken)     # change name of save file
 
 
 if __name__ == '__main__':

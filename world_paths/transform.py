@@ -36,10 +36,6 @@ def projection():
         tld_inv = np.linalg.inv(tld)
         tgl = np.matmul(tgd, tld_inv)
 
-        # lhs = tgl *
-
-        print(tgl)
-
 def check():
     global drone_pose, model_pose, tgl
     if drone_pose is not None and model_pose is not None and tgl is not None:
@@ -85,21 +81,20 @@ def segmenter():
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, poseback)
     rospy.Subscriber("/gazebo/model_states", ModelStates, modelback)
     rate = rospy.Rate(10)
-    df = np.load("/home/r0hit/catkin_ws/src/drdo-interiit22/path_taken_world3_gazebo_coord.npy")
+    df = np.load("world1_gazebo_rohitS.npy")
     df = np.hstack((df, np.ones((df.shape[0], 1))))
-    try:
-        while not rospy.is_shutdown():
-            # print("reached")
-            # print(tgl)
-            projection()
-            if tgl is not None:
-                print("projected")
+    print(df.shape)
 
-        rate.sleep()
-    except KeyboardInterrupt:
-        df_local = transform(df)
-        print("saved")
-        np.save("path_taken_world3_local_coord", df_local)
+    while not rospy.is_shutdown():
+        projection()
+        if tgl is not None:
+            print("projected")
+            df_local = transform(df)
+            print("saved")
+            np.save("world1_local_rohitS(1)", df_local.T[:,:3])
+            break
+
+    rate.sleep()
 
 
 if __name__ == '__main__':

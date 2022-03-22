@@ -35,7 +35,7 @@
       <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -x -12.220319 -y 308.976703 -z 22.295580 -R 0.011338 -P 0.135709 -Y -2.161422 -model prius"/>
       <!-- <node name="lane_detector" pkg="interiit22" type="lane_detect.py" args=""/> -->
       <arg name="node_start_delay" default="5.0" />
-      <node name="init_drone" pkg="drdo_interiit22" type="init_drone" launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' " />
+      <!-- <node name="init_drone" pkg="drdo_interiit22" type="init_drone" launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' " /> -->
 
       <!-- Launching Rviz with 4 images-->
       <node name="rviz" pkg="rviz" type="rviz" args="-d $(find drdo_interiit22)/rviz/myConfg.rviz"/>
