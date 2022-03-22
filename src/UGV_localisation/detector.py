@@ -245,7 +245,7 @@ def calculations():
             
             if ratioE != 0:
                 image = cv2.ellipse(image,ellipse,(0,255,0),2)
-                print(ratioE)
+                # print(ratioE)
                 
                 cv2.putText(image, '{}'.format(ratioE), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
 
@@ -335,9 +335,9 @@ def calculations():
                 zvel.append(vel_z)
 
                 pubMsg.car_state.header = header_im2
-                pubMsg.car_state.pose.pose.position.x = coord[0, 2]
-                pubMsg.car_state.pose.pose.position.y = coord[1, 2]
-                pubMsg.car_state.pose.pose.position.z = coord[2, 2]
+                pubMsg.car_state.pose.pose.position.x = coord[0, 0]
+                pubMsg.car_state.pose.pose.position.y = coord[1, 0]
+                pubMsg.car_state.pose.pose.position.z = coord[2, 0]
 
                 pubMsg.car_centre.x = coord[0,1]
                 pubMsg.car_centre.y = coord[1,1]
