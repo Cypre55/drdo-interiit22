@@ -586,6 +586,8 @@ def my_mainfunc():
 					flag_drone_wait = 0
 			"""
 
+
+
 			#MOVE DRONE
 			close_index = KDTree(path).query(np.array([x,y]))[1]
 			index_drone = KDTree(path).query(np.array([pos_drones[0],pos_drones[1]]))[1]
@@ -594,9 +596,11 @@ def my_mainfunc():
 			# print("Drone_index", index_drone)
 			# print("Car_index", close_index)
 			index_or_condition = ((index_drone-close_index)<10)
-			index_ahead = 45
+			index_ahead = 50
 			drone_height = 18
-			
+
+			###cooridnation 2
+			"""
 			if ((index_drone<=close_index) or index_or_condition) and not (is_ninety):
 				print("MOVING DRONE")
 
@@ -623,6 +627,14 @@ def my_mainfunc():
 
 				msg.brake = 1
 				msg.throttle = 0
+			"""
+			drone_msg.pose.position.x,drone_msg.pose.position.y,drone_msg.pose.position.z = (path[int(close_index+index_ahead)][0]), (path[int(close_index+index_ahead)][1]),drone_height+z #TILL CAR
+			if (index_drone<=close_index)  and not (is_ninety):
+				print("-------------------")
+				print("WAITING for drone")
+				msg.brake = 1
+				msg.throttle = 0
+
 
 			#####
 			# if not run_car_flag:
