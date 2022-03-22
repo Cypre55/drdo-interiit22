@@ -42,6 +42,14 @@ U_ref = np.array([0,0], dtype ='f')                                             
 V_ref = 0.3#6#10                                                                      # referance velocity 
 
 
+Q_x =500000                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 500000 
+Q_V = 10                                                                          
+Q_theta = 5000
+
+R1 = 251000
+R2 = 53000
+
 """
 90%
 
@@ -53,13 +61,13 @@ Q_theta = 5000
 R1 = 201000
 R2 = 55000
 """
-Q_x =49500                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 49500 
-Q_V = 10                                                                          
-Q_theta = 5000
+# Q_x =49500                                                                      # gains to control error in x,y,V,theta during motion
+# Q_y = 49500 
+# Q_V = 10                                                                          
+# Q_theta = 5000
 
-R1 = 251000
-R2 = 53000
+# R1 = 251000
+# R2 = 53000
 
 # Q_x =36500                                                                      # gains to control error in x,y,V,theta during motion
 # Q_y = 36500 
@@ -130,7 +138,7 @@ def equidist_path(path,total_path_points):
 	resolution = 0.1
 	t = np.linspace(0, total_path_points, total_path_points)/ 50
 
-	smallS = 80
+	smallS = 40
 	
 	factor = 10
 	t_new = np.linspace(0, total_path_points*factor, total_path_points*factor)/ (50*factor)
@@ -294,8 +302,8 @@ def my_mainfunc():
 
 
 	# path = np.load("Full_World1_RUN.npy")
-	path = np.load("sexy_path.npy").T[20:,0:2]
-	
+	path = (np.load("/home/satwik/catkin_ws/src/drdo-interiit22/world_paths/world2.npy"))[:,0:2]
+	print(path.shape)
 
 	total_path_points = (path[:,0]).size
 	# print("Path siez before sampling : ",path.shape)

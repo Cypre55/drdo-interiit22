@@ -385,11 +385,11 @@ def poseback(data):
     drone_pose=data
 
 def publish_traj(pub,cx,cy,name):
-    if name=="LEFT":
-        plt.clf()
-    plt.plot(cy,-cx)
-    plt.draw()
-    plt.pause(0.000000000001)
+    # if name=="LEFT":
+    #     plt.clf()
+    # plt.plot(cy,-cx)
+    # plt.draw()
+    # plt.pause(0.000000000001)
     global dep
     path=projection(cx,cy,dep)[:3]
     traj=JointTrajectory()
@@ -458,10 +458,10 @@ def segmenter():
             traj.joint_names=["BACKTRACK"]
             traj.header.stamp=rospy.Time.now()
             mid_pub.publish(traj)
-        plt.ion()
-        plt.xlim([0,640])
-        plt.ylim([0,480])
-        plt.show()
+        # plt.ion()
+        # plt.xlim([0,640])
+        # plt.ylim([0,480])
+        # plt.show()
 
 if __name__ == '__main__':
     segmenter()
