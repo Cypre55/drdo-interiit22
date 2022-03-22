@@ -42,6 +42,8 @@ U_ref = np.array([0,0], dtype ='f')                                             
 V_ref = 0.3#6#10                                                                      # referance velocity 
 
 
+"""
+90%
 
 Q_x =41500                                                                      # gains to control error in x,y,V,theta during motion
 Q_y = 41500 
@@ -50,7 +52,14 @@ Q_theta = 5000
 
 R1 = 201000
 R2 = 55000
+"""
+Q_x =49500                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 49500 
+Q_V = 10                                                                          
+Q_theta = 5000
 
+R1 = 251000
+R2 = 53000
 
 # Q_x =36500                                                                      # gains to control error in x,y,V,theta during motion
 # Q_y = 36500 
@@ -285,7 +294,7 @@ def my_mainfunc():
 
 
 	# path = np.load("Full_World1_RUN.npy")
-	path = np.load("path_new_rs.npy").T[20:,0:2]
+	path = np.load("sexy_path.npy").T[20:,0:2]
 	
 
 	total_path_points = (path[:,0]).size
@@ -303,7 +312,7 @@ def my_mainfunc():
 
 	instance = rospy.Publisher('prius', Control, queue_size=10)
 	pub1 = rospy.Publisher("uav_wp", PoseStamped, queue_size=1000000) 
-	rate = rospy.Rate(10)
+	rate = rospy.Rate(20)
 	rate.sleep()                                                                                 #rate.sleep() to run odomfunc once 
 
 	msg = Control()
