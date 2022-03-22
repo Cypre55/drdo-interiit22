@@ -58,13 +58,16 @@ def check():
         diff = np.sum(np.abs(lhs - rhs))
         print("diff", diff)
 
-def transform(data):
+def transform1(data):
     global tgl
     data = data.T
     tgl_inv = np.linalg.inv(tgl)
     return np.matmul(tgl_inv, data)
 
-
+def transform2(data):
+    global tgl
+    data = data.T
+    return np.matmul(tgl, data)
 
 def poseback(data):
     global drone_pose
@@ -89,7 +92,8 @@ def segmenter():
         projection()
         if tgl is not None:
             print("projected")
-            df_local = transform(df)
+            df_local = transform1(df) # to calc from gazebo to local
+            # df_gazebo = transform2(df) # to calc from local to gazebo
             print("saved")
             np.save("world1_local_rohitS(1)", df_local.T[:,:3])
             break
