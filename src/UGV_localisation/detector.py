@@ -294,17 +294,17 @@ def calculations():
                 yfront = ytop
                 xback = xbot
                 yback = ybot
-            if cx>32 and cx<608 and cy>24 and cy<456:
+            if cx>64 and cx<576 and cy>75 and cy<410:
                 pubMsg.isCarNinety.data = True
 
 
             coord = projection(np.array([yfront,cy,yback]), np.array([xfront,cx,xback]), cv_depth, drone_pose)
             # cv2.circle(image,(int(cx),int(cy)),7,(0,0,255),-1)
             cv2.circle(image, (int(xfront), int(yfront)), 7, (0, 0,255), -1)
-            # cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront), int(yfront)),(0,255,0),thickness = 4)
+            cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront), int(yfront)),(0,255,0),thickness = 4)
 
-            cv2.imshow("images", image)
-            cv2.waitKey(1)
+            # cv2.imshow("images", image)
+            # cv2.waitKey(1)
             pub2.publish(bridge.cv2_to_imgmsg(image))
 
             if coord.shape[1] == 3:
