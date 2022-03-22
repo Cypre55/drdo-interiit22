@@ -21,12 +21,13 @@ rosns = rospy.get_namespace()
 gzns = '/gazebo'
 
 max_cnt = 0
-for cnt in range(path_file.shape[0]/10):        # taking every 10th point. Adjust frequency based on number of points in path file
+iteri = 1
+for cnt in range(path_file.shape[0]/iteri):        # taking every 10th point. Adjust frequency based on number of points in path file
     model = 'cube' + str(cnt)                   # Change 'cube' to new name if you are plotting points in a world which already has a plot coz model name errors
-    if cnt*10 < path_file.shape[0]:
-        x = path_file[cnt*10, 0]
-        y = path_file[cnt*10, 1]
-        z = path_file[cnt*10, 2] + 2
+    if cnt*iteri < path_file.shape[0]:
+        x = path_file[cnt*iteri, 0]
+        y = path_file[cnt*iteri, 1]
+        z = path_file[cnt*iteri, 2] + 2
         initial_pose = Pose()
         initial_pose.position.x = x
         initial_pose.position.y = y

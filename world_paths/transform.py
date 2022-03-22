@@ -84,7 +84,8 @@ def segmenter():
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, poseback)
     rospy.Subscriber("/gazebo/model_states", ModelStates, modelback)
     rate = rospy.Rate(10)
-    df = np.load("world1_gazebo_rohitS.npy")
+    # df = np.load("world1_gazebo_rohitS.npy")
+    df = np.load("world2_local_satwik_run3.npy")
     df = np.hstack((df, np.ones((df.shape[0], 1))))
     print(df.shape)
 
@@ -92,10 +93,11 @@ def segmenter():
         projection()
         if tgl is not None:
             print("projected")
-            df_local = transform1(df) # to calc from gazebo to local
-            # df_gazebo = transform2(df) # to calc from local to gazebo
+            # df_local = transform1(df) # to calc from gazebo to local
+            df_gazebo = transform2(df) # to calc from local to gazebo
             print("saved")
-            np.save("world1_local_rohitS(1)", df_local.T[:,:3])
+            # np.save("world1_local_rohitS(1)", df_local.T[:,:3])
+            np.save("world2_gazebo_rohitS_run3.npy", df_gazebo.T[:,:3])
             break
 
     rate.sleep()
