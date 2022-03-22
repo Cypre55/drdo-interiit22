@@ -158,6 +158,20 @@ def projection(cx, cy, img,
 
 
 def calculations():
+    if (len(xdata) == 3):
+        xdata.pop(0)
+    if (len(ydata) == 3):
+        ydata.pop(0)
+    if (len(zdata) == 3):
+        zdata.pop(0)
+    if(len(time)==3):
+        time.pop(0)
+    if (len(xvel) == 3):
+        xvel.pop(0)
+    if (len(yvel) == 3):
+        yvel.pop(0)
+    if (len(zvel) == 3):
+        zvel.pop(0)
     # print("calculations called")
     bridge = CvBridge()
     global imgimg, im2, drone_pose, header_im2, header_imgimg, ellipse
@@ -295,8 +309,8 @@ def calculations():
             cv2.circle(image, (int(xfront), int(yfront)), 7, (0, 0,255), -1)
             # cv2.arrowedLine(image,(int(cx),int(cy)),(int(xfront), int(yfront)),(0,255,0),thickness = 4)
 
-            # cv2.imshow("images", image)
-            # cv2.waitKey(1)
+            cv2.imshow("images", image)
+            cv2.waitKey(1)
             pub2.publish(bridge.cv2_to_imgmsg(image))
 
             if coord.shape[1] == 3:
