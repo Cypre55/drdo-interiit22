@@ -53,13 +53,13 @@ Q_theta = 5000
 R1 = 201000
 R2 = 55000
 """
-Q_x =49500                                                                      # gains to control error in x,y,V,theta during motion
-Q_y = 49500 
+Q_x =52500                                                                      # gains to control error in x,y,V,theta during motion
+Q_y = 52500 
 Q_V = 10                                                                          
 Q_theta = 5000
 
 R1 = 251000
-R2 = 53000
+R2 = 52000
 
 # Q_x =36500                                                                      # gains to control error in x,y,V,theta during motion
 # Q_y = 36500 
