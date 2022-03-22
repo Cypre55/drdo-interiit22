@@ -15,7 +15,25 @@ This package has been tested on Ubuntu 18.04 with ROS Melodic and Gazebo-9, inst
     pip install casadi
 ```
 
-## 2. Setting up environment variables
+## 2. Setting up Environment Variables & Parameters
+### 2.1 Environment Variables
+
+### 2.2 Parameters
+Camera Parameters: Open the file drdo-interiit22/models/gimbal_small_2d/model.sdf and update following parameters of ```<sensor name="depth_camera" type="depth">``` :
+```
+    <update_rate>30</update_rate>
+    <camera>
+      <clip>
+        <near>0.1</near>
+        <far>70</far>
+      </clip>
+    </camera>
+    <plugin name="depth_controller" filename="libgazebo_ros_openni_kinect.so">
+      <updateRate>30.0</updateRate>
+      <pointCloudCutoff>0.4</pointCloudCutoff>
+      <pointCloudCutoffMax>70.0</pointCloudCutoffMax>
+    </plugin>
+```
 
 ## 3. Build the Repository
 Clone the repository and catkin build:
