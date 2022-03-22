@@ -39,11 +39,11 @@ def main():
 
     state_msg = ModelState()
     state_msg.model_name = 'prius'
-    state_msg.pose.position.x = 104.742386
-    state_msg.pose.position.y = -101.9010777
-    state_msg.pose.position.z = 15.730011
+    state_msg.pose.position.x = -12.247099
+    state_msg.pose.position.y = 308.947301
+    state_msg.pose.position.z = 22.290122
 
-    roll,pitch,yaw = -0.054656, 0.032451, 2.460081
+    roll,pitch,yaw = -0.005833,0.135839,-2.287164
 
     quarternions = quaternion_from_euler(roll,pitch,yaw)
 
@@ -93,3 +93,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

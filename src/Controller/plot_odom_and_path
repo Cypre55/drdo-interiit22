@@ -1,0 +1,31 @@
+from matplotlib.markers import MarkerStyle
+import numpy as np
+import matplotlib.pyplot as plt
+import math
+
+
+path = np.load("/home/theabyss/interiit_new_ws/src/drdo_interiit22/src/Controller/ugv_waypoints.npy")
+
+
+# x = 5.4992225923182385
+# y = -1.4371004864324364
+x,y,theta = 6.652151123620502, -5.186549804230327, -0.4967937675520617
+
+# theta = -0.6#2.5803799750973133 - 3.14
+
+# xl = [1,2,3]
+# yl = [0,0,0]    
+# yl[0] = math.tan(theta)*(xl[0]-x) + y
+# yl[1] =  math.tan(theta)*(xl[1]-x) + y
+# yl[2] =  math.tan(theta)*(xl[2]-x) + y
+
+
+plt.plot((x,x+8*math.cos(theta)),(y, y+8*math.sin(theta)))
+# plt.plot((x,x+8*math.cos(theta)),(y, y+8*math.sin(theta)))
+
+plt.plot(path[:,0],path[:,1])
+# plt.plot(xl,yl)
+
+plt.scatter(x,y)
+
+plt.show()
