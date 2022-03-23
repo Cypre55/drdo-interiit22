@@ -294,7 +294,9 @@ def my_mainfunc():
 
 
 	# path = np.load("Full_World1_RUN.npy")
-	path = np.load("/home/theabyss/interiit_new_ws/src/drdo_interiit22/src/Controller/sexy_path.npy").T[20:,0:2]
+	# path = np.load("/home/theabyss/interiit_new_ws/src/drdo_interiit22/src/Controller/sexy_path.npy").T[20:,0:2]
+	path = np.load("/home/theabyss/interiit_new_ws/src/ugv_waypoints.npy")[0:,0:2]
+	print("Using My Ugv Waypoints")
 	
 
 	total_path_points = (path[:,0]).size
@@ -774,6 +776,9 @@ def my_mainfunc():
 				P[n_states*(N+1)+n_controls*(N-1):n_states*(N+1)+n_controls*(N)] = U_ref   
 
 			else:
+				print("saving")
+				cte = np.array(path_to_store)
+				np.save("path_followed", cte)
 				# print("X and Y after", x,y)
 				# print("N",N, "ci", close_index)
 				# print("TP", total_path_points)

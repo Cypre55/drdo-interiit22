@@ -11,18 +11,18 @@ plt.tick_params(axis='x', which='both')
 # ax.tick_params(which="major", axis="x", direction="in")
 # ax.tick_params(which="major", axis="y", direction="inout")
 
-path1 = np.load("path_followed.npy")
+path1 = np.load("/home/theabyss/interiit_new_ws/src/drdo_interiit22/src/Controller/path_followed.npy")
 print(path1.shape)
 plt.plot(path1[:,0],path1[:,1], label = "UGV Tracked Path | Phase 2", c = 'r', linewidth = 0.9, alpha = 0.8) 
 
 
-path2 = np.load("sexy_path.npy").T[20:-35]
+path2 = np.load("/home/theabyss/interiit_new_ws/src/ugv_waypoints.npy")
 plt.plot(path2[:,0],path2[:,1], label="UAV Mapped Path | Phase 1" ,c = 'k', linewidth = 0.7, linestyle='dashed', alpha= 0.7) 
 plt.legend(fontsize=8)
 plt.grid()
 plt.axes().set_aspect('equal')
 
-plt.savefig("exp_cl.png",bbox_inches='tight', pad_inches = 0.03)
+plt.savefig("exp_cl22.png",bbox_inches='tight', pad_inches = 0.03)
 
 # path3 = np.load("ugv_waypoints.npy")
 # plt.plot(path3[:,0],path3[:,1]) 
