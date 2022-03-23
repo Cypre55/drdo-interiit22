@@ -313,7 +313,7 @@ def my_mainfunc():
 	# pathfunc()
 
 	instance = rospy.Publisher('prius', Control, queue_size=10)
-	pub1 = rospy.Publisher("uav_wp", PoseStamped, queue_size=1000000) 
+	pub1 = rospy.Publisher("uav_wp", PoseStamped, queue_size=50) 
 	rate = rospy.Rate(20)
 	rate.sleep()                                                                                 #rate.sleep() to run odomfunc once 
 
