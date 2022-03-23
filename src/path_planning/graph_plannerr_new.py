@@ -18,7 +18,7 @@ import time
 
 UAV_HEIGHT = 18.0
 PI = 3.1415
-REACH_THRESHOLD = 0.5
+REACH_THRESHOLD = 1.5
 VISITED_RADIUS = 1.8
 NEW_WP_RESOLUTION = 5
 DEQUE_SIZE = 4
@@ -291,6 +291,11 @@ def build_graph():
         print("Joint Traj: {}".format(joint_traj))
         return
 
+    if took_off == False or took_off is None:
+        return
+
+    if len(graph.arr) == 0:
+        return
     # plt.clf()
     # plt.scatter(current_uav_xyz[0, 0], current_uav_xyz[0, 1])
     # plt.plot(joint_traj[:, 0], joint_traj[:, 1])
@@ -361,8 +366,8 @@ def build_graph():
     if (right_bound >= joint_traj.shape[0]):
         right_bound = joint_traj.shape[0] - 1
 
-    print(left_bound)
-    print(right_bound)
+    # print(left_bound)
+    # print(right_bound)
 
     # print(distances[left_bound])
     # print(np.linalg.norm(joint_traj[left_bound, :2] - graph_current_xy))
@@ -515,6 +520,7 @@ def current_uav_pose_cb(data):
     arr_1 = np.array([uav_wp.pose.position.x, uav_wp.pose.position.y, uav_wp.pose.position.z])
     arr_2 = np.array([current_uav_pose.pose.position.x, current_uav_pose.pose.position.y, current_uav_pose.pose.position.z])
     dist = np.linalg.norm(arr_1 - arr_2)
+    print("Waypoint Dist: {}".format(dist))
     if (dist < REACH_THRESHOLD):
         reaching_flag = False
         print("Reached Waypoint: ({}, {}, {})".format(uav_wp.pose.position.x, uav_wp.pose.position.y, uav_wp.pose.position.z))
@@ -525,6 +531,7 @@ def current_uav_pose_cb(data):
     dist = np.linalg.norm(arr_1 - arr_2[:2])
     if (dist < REACH_THRESHOLD):
         end_reached_flag.data = True
+        print("Reached Endpoint: ({}, {}, {})".format(uav_wp.pose.position.x, uav_wp.pose.position.y, uav_wp.pose.position.z))
         end_reached_mapping_pub.publish(end_reached_flag)	
 
 def car_state_cb(data):
